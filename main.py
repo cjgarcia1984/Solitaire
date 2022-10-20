@@ -1,3 +1,4 @@
+from this import d
 from modules.cards import Deck, Solitaire
 
 
@@ -7,6 +8,9 @@ def main():
         print(c.number, c.suit)
         
     s = Solitaire()
+    while not s.complete:
+        s.play()
+
     print(s)
         
 
