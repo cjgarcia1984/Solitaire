@@ -283,7 +283,8 @@ class Solitaire(object):
                 
     def ui_move_t_stack(self,source,dest):
         options = ["r"]
-        int_options = range(1,len([c for c in self.t_stack[source] if c.visible])+1)
+        int_options = range(1,len([c for c in self.t_stack[source].cards if c.visible])+1)
+        int_options = [str(c) for c in int_options]
         print("Select option:")
         user_input = ""
         while user_input not in options or user_input not in int_options:
@@ -294,7 +295,7 @@ class Solitaire(object):
                 self.play()
                 break
             elif user_input == "r":
-                self.ui_select_t_stack_dest()
+                self.play()
                 break
             else: 
                 print("Please enter a valid option.")
