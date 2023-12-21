@@ -36,10 +36,9 @@ class Solitaire(object):
         self.deal_next_cards()
 
     def show_cards(self):
-        if not self.next_cards:
-            print("Deal cards first.")
+        if not self.next_cards.cards:
             return
-    
+        print('=' * 60)
         # Display the next card and the following cards
         print("Next Cards:")
         if len(self.next_cards.cards) == 1:
@@ -48,14 +47,14 @@ class Solitaire(object):
             next_cards_str = ', '.join([card.card_id() for card in self.next_cards.cards[:-1]])
             next_cards_str += f", [{self.next_cards.cards[-1].card_id()}]"
         print(f"{next_cards_str if next_cards_str else 'None'}")
-        print('-' * 40)
+        print('-' * 60)
     
         # Display the foundation stacks
         print("Foundation:")
         for n, s in enumerate(self.foundation):
             top_card = s.get_top_card().card_id() if s.cards else "[Empty]"
             print(f"F{n}: {top_card}", end='  ')
-        print('\n' + '-' * 40)
+        print('\n' + '-' * 60)
     
         # Display the tableau stacks with identifiers at the top
         print("Tableau:")
@@ -75,24 +74,26 @@ class Solitaire(object):
                 else:
                     print("\t", end='')
             print()  # Newline after each level of cards
-        print('=' * 40)
+        print('=' * 60)
 
 
     def deal_next_cards(self):
-        if not self.deck.cards and self.waste.cards:
+        if not self.deck.cards and not self.next_cards.cards and self.waste.cards:
             print("Recycling waste pile.")
             self.waste.cards  # Reverse the order of the waste pile
             self.deck.cards.extend(self.waste.cards)  # Move the waste cards back to the deck
             self.waste.cards.clear()  # Clear the waste pile
-        else:
-            print("No cards to recycle.")
+
         self.next_cards.cards.reverse()
         for c in reversed(self.next_cards.cards):
             self.waste.cards.append(c)
         self.next_cards.cards = self.deck.cards[: self.cards_per_turn]
-        #self.next_cards.cards.reverse()
+
         self.deck.cards = self.deck.cards[self.cards_per_turn :]
-        self.show_cards()
+        if self.next_cards.cards:
+            self.show_cards()
+        else:
+            self.deal_next_cards()
         return True
 
 
@@ -181,7 +182,13 @@ class Solitaire(object):
         if not self.is_card_visible_and_movable(cards):
             print("Selected card is not visible.")
             return 0
-    
+        # Check if moving from the foundation
+        if "Foundation" in source.type and isinstance(dest, int):
+            # Logic to handle moving a card from the foundation to a tableau stack
+            dest_stack = self.t_stack[dest]
+            card = source.get_top_card()  # Get top card from the foundation
+            if num_cards == 1 and self.is_valid_tableau_move(dest_stack, card):
+                return self.move_to_tableau(source, dest_stack, [card])
         if isinstance(dest, str) and dest == 'f':
             # Move to foundation (only allow single card move)
             return self.move_to_foundation(source_stack, cards[0]) if num_cards == 1 else 0
