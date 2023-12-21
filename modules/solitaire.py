@@ -42,8 +42,11 @@ class Solitaire(object):
     
         # Display the next card and the following cards
         print("Next Cards:")
-        next_cards_str = ', '.join([card.card_id() for card in self.next_cards.cards[:-1]])
-        next_cards_str += f", [{self.next_cards.cards[-1].card_id()}]"
+        if len(self.next_cards.cards) == 1:
+            next_cards_str = f"[{self.next_cards.cards[-1].card_id()}]"
+        else:
+            next_cards_str = ', '.join([card.card_id() for card in self.next_cards.cards[:-1]])
+            next_cards_str += f", [{self.next_cards.cards[-1].card_id()}]"
         print(f"{next_cards_str if next_cards_str else 'None'}")
         print('-' * 40)
     
@@ -76,11 +79,13 @@ class Solitaire(object):
 
 
     def deal_next_cards(self):
-        if not self.deck.cards:
-            self.waste.cards
-            self.deck.cards = self.waste.cards
-            self.waste.cards = []
-            print("Cards recycled.")
+        if not self.deck.cards and self.waste.cards:
+            print("Recycling waste pile.")
+            self.waste.cards  # Reverse the order of the waste pile
+            self.deck.cards.extend(self.waste.cards)  # Move the waste cards back to the deck
+            self.waste.cards.clear()  # Clear the waste pile
+        else:
+            print("No cards to recycle.")
         self.next_cards.cards.reverse()
         for c in reversed(self.next_cards.cards):
             self.waste.cards.append(c)
@@ -114,15 +119,16 @@ class Solitaire(object):
 
     def is_valid_tableau_move(self, dest_stack, card):
         """Validate color and sequence for tableau move."""
-        if dest_stack.is_empty():
-            # Only kings (number 13) can be moved to an empty stack
-            return card.number == 13 if isinstance(card, Card) else card[0].number == 13
 
         top_dest_card = dest_stack.get_top_card()
 
         # Determine the bottom card of the moving sequence
         bottom_card = card if isinstance(card, Card) else card[0]
 
+        if dest_stack.is_empty():
+            # Only kings (number 13) can be moved to an empty stack
+            return card.number == 13 if isinstance(card, Card) else bottom_card.number == 13
+        
         # Check the color and number sequence for the bottom card
         is_valid_color = top_dest_card.color != bottom_card.color
         is_valid_sequence = top_dest_card.number == bottom_card.number + 1
@@ -170,7 +176,7 @@ class Solitaire(object):
             cards = [source_stack.get_top_card()]  # Single card
         else:
             # Multiple cards: Select from the specified card to the bottom of the stack
-            cards = source_stack.cards[-num_cards:]
+            cards = source_stack.cards[:num_cards]
     
         if not self.is_card_visible_and_movable(cards):
             print("Selected card is not visible.")
@@ -237,20 +243,20 @@ class Solitaire(object):
                 print("Please enter a valid option.")
                 
     def ui_move(self):
-        options = ["n","t","r"]
-        print("Select option:")
+        options = ["n", "r"] + [str(i) for i in range(len(self.t_stack))]
+        print("Select option (Next card: 'n', Return: 'r', Tableau stack: 0 to {}):".format(len(self.t_stack) - 1))
+
         user_input = ""
         while user_input not in options:
-            print("Move from: Next card (n); Tableau stack (t) or Return (r)")
             user_input = input()
             if user_input == "n":
                 self.ui_move_next_card()
-            elif user_input == "t":
-                self.ui_select_t_stack()
             elif user_input == "r":
                 self.play()
+            elif user_input.isdigit() and int(user_input) in range(len(self.t_stack)):
+                self.ui_select_t_stack_dest(int(user_input))
             else: 
-                print("Please enter a valid option.")   
+                print("Please enter a valid option.")  
 
     def ui_move_next_card(self):
         options = ["f","k","r"]
@@ -277,24 +283,7 @@ class Solitaire(object):
                 break
             else: 
                 print("Please enter a valid option.")  
-                
-    def ui_select_t_stack(self):
-        int_options = [str(i) for i in range(len(self.t_stack))]
-        options = ["r"]
-        print("Select option:")
-        user_input = ""
-        while user_input not in options or user_input not in int_options:
-            print("Move from tableau stack (int) or Return (r)")
-            user_input = input()
-            if user_input in int_options:
-                self.ui_select_t_stack_dest(int(user_input))
-                break
-            elif user_input == "r":
-                self.ui_move()
-                break
-            else: 
-                print("Please enter a valid option.")  
-                
+                     
     def ui_select_t_stack_dest(self,n):
         int_options = [str(i) for i in range(len(self.t_stack))]
         options = ["f","k","r"]
@@ -320,24 +309,36 @@ class Solitaire(object):
             else: 
                 print("Please enter a valid option.") 
                 
-    def ui_move_t_stack(self,source,dest):
-        options = ["r"]
-        int_options = range(1,len([c for c in self.t_stack[source].cards if c.visible])+1)
-        int_options = [str(c) for c in int_options]
-        print("Select option:")
+    def ui_move_t_stack(self, source, dest):
+        visible_cards_count = len([c for c in self.t_stack[source].cards if c.visible])
+
+        # If only one visible card, move that card without asking for the number
+        if visible_cards_count == 1:
+            self.move_from_t_stack(source, dest, num_cards=1)
+            self.play()
+            return
+
+        # If more than one visible card, ask for the number of cards to move
+        options = ["r","a"] + [str(i) for i in range(1, visible_cards_count + 1)]
+        print("Select number of cards to move (1 to {}) or Return (r):".format(visible_cards_count))
+
         user_input = ""
-        while user_input not in options or user_input not in int_options:
-            print("Number of cards to move (int) or Return (r)")
+        while user_input not in options:
             user_input = input()
-            if user_input in int_options:
-                self.move_from_t_stack(source, dest,num_cards=int(user_input))
+            if user_input.isdigit() and int(user_input) in range(1, visible_cards_count + 1):
+                self.move_from_t_stack(source, dest, num_cards=int(user_input))
                 self.play()
                 break
             elif user_input == "r":
                 self.play()
                 break
-            else: 
+            elif user_input == "a":
+                self.move_from_t_stack(source, dest, num_cards=visible_cards_count)
+                self.play()
+                break
+            else:
                 print("Please enter a valid option.")
+
     
     def status(self):
         n_foundation = sum([len(s.cards) for s in self.foundation])
