@@ -231,24 +231,54 @@ class Solitaire(object):
     
     def play(self):
         self.complete = self.status()
-        options = ["s","m","d"]
-        print("Select option:")
-        user_input = ""
-        while user_input not in options:
-            print("Show (s); Move (m); Deal (d)")
-            user_input = input()
-            if user_input == "s":
-                self.show_cards()
-                break
-            elif user_input == "m":
-                self.ui_move()
-                break
-            elif user_input == "d":
-                self.deal_next_cards()
-                break
-            else: 
-                print("Please enter a valid option.")
-                
+        print("Current board:")
+        self.show_cards()  # Show the current state of the game
+
+        print("Enter your move:")
+        print("Format: [source]-[destination] (e.g., 'n-f' to move from next to foundation, '0-2' to move from Tableau 0 to Tableau 2)")
+        print("Type 'd' to deal next cards, 's' to show the board, or 'q' to quit.")
+
+        user_input = input().lower().strip()
+        if user_input == 's':
+            self.show_cards()
+        elif user_input == 'd':
+            self.deal_next_cards()
+        elif user_input == 'q':
+            print("Game ended.")
+            return
+        else:
+            self.parse_and_execute_move(user_input)
+
+        if not self.complete:
+            self.play()  # Continue playing if the game is not complete
+        else:
+            print("Congratulations! You've completed the game.")
+
+    def parse_and_execute_move(self, move):
+        parts = list(move)
+        if len(parts) != 2:
+            print("Invalid move format. Please use the format 'sourcedestination'.")
+            return
+
+        source, dest = parts
+        if source.isdigit():
+            source = int(source)  # Convert to int if it's a tableau stack number
+
+        if dest.isdigit():
+            dest = int(dest)  # Convert to int if it's a tableau stack number
+
+        # Execute the move based on the source and destination
+        if source == 'n':
+            self.move_next_card(dest)
+        elif isinstance(source, int):
+            if dest == 'f':
+                self.move_from_t_stack(source, 'f')
+            elif isinstance(dest, int):
+                self.ui_move_t_stack(source, dest)
+        else:
+            print("Invalid move. Please try again.")
+
+
     def ui_move(self):
         options = ["n", "r"] + [str(i) for i in range(len(self.t_stack))]
         print("Select option (Next card: 'n', Return: 'r', Tableau stack: 0 to {}):".format(len(self.t_stack) - 1))
