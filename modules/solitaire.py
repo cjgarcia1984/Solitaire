@@ -97,7 +97,7 @@ class Solitaire(object):
             return True  # Destination is the foundation
         if isinstance(dest, int):
             # Destination is a tableau stack
-            return dest < len(self.t_stack) and (source.type == "Tableau Stack" or num_cards == 1)
+            return dest < len(self.t_stack) and ("Tableau Stack" in source.type or num_cards == 1)
         return False
 
     def is_card_visible_and_movable(self, card):
@@ -112,28 +112,37 @@ class Solitaire(object):
         """Check if the destination is a valid tableau stack."""
         return isinstance(dest, int) and dest < len(self.t_stack)
 
-    def is_valid_tableau_move(self, source_stack, dest_stack, card, num_cards):
+    def is_valid_tableau_move(self, dest_stack, card):
         """Validate color and sequence for tableau move."""
         if dest_stack.is_empty():
-            return card[0].number == 13  # Only kings can be moved to an empty stack
+            # Only kings (number 13) can be moved to an empty stack
+            return card.number == 13 if isinstance(card, Card) else card[0].number == 13
+
         top_dest_card = dest_stack.get_top_card()
 
-        # Check the color and number sequence for the first card in the list
-        is_valid_color = top_dest_card.color != card[0].color
-        is_valid_sequence = top_dest_card.number == card[0].number + 1
+        # Determine the bottom card of the moving sequence
+        bottom_card = card if isinstance(card, Card) else card[0]
+
+        # Check the color and number sequence for the bottom card
+        is_valid_color = top_dest_card.color != bottom_card.color
+        is_valid_sequence = top_dest_card.number == bottom_card.number + 1
 
         return is_valid_color and is_valid_sequence
 
-    def move_to_tableau(self, source_stack, dest_stack, cards, num_cards):
+
+    def move_to_tableau(self, source_stack, dest_stack, cards):
         """Move the card(s) to the tableau stack."""
-        for _ in range(num_cards):
-            dest_stack.cards.insert(0, source_stack.remove_top_card())
+        # Reverse the order of cards for correct insertion
+        for card in reversed(cards):
+            dest_stack.cards.insert(0, card)
+            source_stack.cards.remove(card)
 
         # Format the list of card representations into a string
         cards_str = ', '.join([card.card_id() for card in cards])
         print(f"Card {cards_str} moved to tableau stack.")
         self.show_cards()
         return 1
+
 
     def move_to_foundation(self, source_stack, card):
         """Move the card to the foundation."""
@@ -155,42 +164,56 @@ class Solitaire(object):
         if not self.is_valid_source_and_destination(source, dest, num_cards):
             print("Invalid source or destination.")
             return 0
-
+    
         source_stack = source
         if num_cards == 1:
-            card = [source_stack.get_top_card()]  # Make it a list even if it's one card
+            cards = [source_stack.get_top_card()]  # Single card
         else:
-            card = source_stack.cards[:num_cards]  # Already a list
-
-        if not self.is_card_visible_and_movable(card):
+            # Multiple cards: Select from the specified card to the bottom of the stack
+            cards = source_stack.cards[-num_cards:]
+    
+        if not self.is_card_visible_and_movable(cards):
             print("Selected card is not visible.")
             return 0
-
+    
         if isinstance(dest, str) and dest == 'f':
-            return self.move_to_foundation(source_stack, card)
+            # Move to foundation (only allow single card move)
+            return self.move_to_foundation(source_stack, cards[0]) if num_cards == 1 else 0
         elif self.is_valid_tableau_destination(dest):
             dest_stack = self.t_stack[dest]
-            if self.is_valid_tableau_move(source_stack, dest_stack, card, num_cards):
-                return self.move_to_tableau(source_stack, dest_stack, card, num_cards)
-
+            bottom_card = cards[-1]  # The bottom card of the sequence
+            if self.is_valid_tableau_move(dest_stack, bottom_card):
+                return self.move_to_tableau(source_stack, dest_stack, cards)
+    
         print("Invalid move.")
         return 0
 
 
+    def move_next_card(self, dest):
+        if not self.next_cards.cards:
+            print("No more cards in the next cards pile.")
+            return
 
-    def move_next_card(self, loc):
-        cards = self.next_cards
-        moved = self.move_card(cards, loc)
-        self.show_cards()
-        if moved and self.waste.cards:
-            self.next_cards.cards.append(self.waste.cards.pop(0))
-            
-    def move_from_t_stack(self, t_stack, loc, cards=1):
-        cards = self.t_stack[t_stack]
-        moved = self.move_card(cards, loc)
+        # Select the last card in the next_cards stack as the card to move
+        source_card = self.next_cards.cards[-1]
+
+        # Move the specific card
+        moved = self.move_card(Stack([source_card], type="Next Cards"), dest)
         if moved:
+            # Successfully moved, so remove the card from next_cards
+            self.next_cards.cards.pop()
+
+        self.show_cards()
+
+            
+    def move_from_t_stack(self, t_stack, loc, num_cards=1):
+        cards = self.t_stack[t_stack]
+        moved = self.move_card(cards, loc, num_cards=num_cards)
+        if moved:
+            if not isinstance(cards, list):
+                cards = cards.cards
             if cards:
-                cards.cards[0].visible=True
+                cards[0].visible=True
             self.show_cards()
     
     def play(self):
@@ -307,7 +330,7 @@ class Solitaire(object):
             print("Number of cards to move (int) or Return (r)")
             user_input = input()
             if user_input in int_options:
-                self.move_from_t_stack(source, dest,cards=int(user_input))
+                self.move_from_t_stack(source, dest,num_cards=int(user_input))
                 self.play()
                 break
             elif user_input == "r":
