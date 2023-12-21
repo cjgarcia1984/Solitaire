@@ -1,14 +1,19 @@
 from modules.card import Card
 from modules.deck import Deck
 from modules.stack import Stack
+import yaml
 
 class Solitaire(object):
-    def __init__(self):
+    def __init__(self, config=None, config_path=None):
+        if config:
+            self.config = config
+        elif config_path:
+            with open(config_path) as f:
+                self.config = yaml.safe_load(f)
         self.deck = None
         self.num_t_stack = 8
         self.t_stack = None
         self.waste = None
-        self.cards_per_turn = 3
         self.foundation = None
         self.next_cards = None
         self.complete = False
@@ -20,7 +25,7 @@ class Solitaire(object):
         self.next_cards = Stack([],type="Next Cards")
         self.t_stack = []
         self.waste = Stack([], type="Waste")
-        self.deck = Deck()
+        self.deck = Deck(self.config.get("random_seed"))
         for ts in range(1, self.num_t_stack):
             self.t_stack.append(Stack([],type=f"Tableau Stack {ts}"))
             s = ts - 1
@@ -36,17 +41,20 @@ class Solitaire(object):
         self.deal_next_cards()
 
     def show_cards(self):
-        if not self.next_cards.cards:
+        if not self.next_cards.cards and not self.deck.cards:
             return
         print('=' * 60)
         # Display the next card and the following cards
         print("Next Cards:")
-        if len(self.next_cards.cards) == 1:
-            next_cards_str = f"[{self.next_cards.cards[-1].card_id()}]"
+        if len(self.next_cards.cards) > 0:
+            if len(self.next_cards.cards) == 1:
+                next_cards_str = f"[{self.next_cards.cards[-1].card_id()}]"
+            else:
+                next_cards_str = ', '.join([card.card_id() for card in self.next_cards.cards[:-1]])
+                next_cards_str += f", [{self.next_cards.cards[-1].card_id()}]"
+            print(f"{next_cards_str if next_cards_str else 'None'}")
         else:
-            next_cards_str = ', '.join([card.card_id() for card in self.next_cards.cards[:-1]])
-            next_cards_str += f", [{self.next_cards.cards[-1].card_id()}]"
-        print(f"{next_cards_str if next_cards_str else 'None'}")
+            print("No more cards in the next cards pile.")
         print('-' * 60)
     
         # Display the foundation stacks
@@ -87,9 +95,9 @@ class Solitaire(object):
         self.next_cards.cards.reverse()
         for c in reversed(self.next_cards.cards):
             self.waste.cards.append(c)
-        self.next_cards.cards = self.deck.cards[: self.cards_per_turn]
+        self.next_cards.cards = self.deck.cards[: self.config.get('cards_per_turn')]
 
-        self.deck.cards = self.deck.cards[self.cards_per_turn :]
+        self.deck.cards = self.deck.cards[self.config.get('cards_per_turn') :]
         if self.next_cards.cards:
             self.show_cards()
         else:
