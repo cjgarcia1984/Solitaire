@@ -1,64 +1,6 @@
-import random
-from typing import Iterable
-import gym
-
-
-class Card(object):
-    def __init__(self, suit, number):
-        self.suit_dict = {
-            "Spades": "black",
-            "Hearts": "red",
-            "Diamonds": "red",
-            "Clubs": "black",
-        }
-        self.suit = suit
-        self.number = number
-        self.color = self.suit_dict[suit]
-        self.visible = False
-
-    def card_id(self):
-        card_id = (self.number, self.suit)
-        return card_id
-
-
-class Stack(object):
-    def __init__(self, cards: list,type=None):
-        if not isinstance(cards,Iterable):
-            cards = [cards]
-        self.cards = cards
-        self.type = type
-
-    def get_top_card(self):
-        if self.cards:
-            top_card = self.cards[0]
-            return top_card
-
-    def remove_top_card(self):
-        top_card = self.cards.pop(0)
-        self.show_top_card()
-        return top_card
-
-    def is_empty(self):
-        if not self.cards:
-            return True
-    
-    def show_top_card(self):
-        if not self.cards:
-            return
-        self.cards[0].visible = True
-
-
-class Deck(Stack):
-    def __init__(self):
-        Stack.__init__(self, [], type="Deck")
-        self.max = 13
-        self.suits = ["Spades", "Hearts", "Diamonds", "Clubs"]
-        for s in self.suits:
-            for n in range(self.max):
-                self.cards.append(Card(s, n + 1))
-
-        random.Random().shuffle(self.cards)
-
+from modules.card import Card
+from modules.deck import Deck
+from modules.stack import Stack
 
 class Solitaire(object):
     def __init__(self):
@@ -74,7 +16,7 @@ class Solitaire(object):
 
     def deal_cards(self):
         # deal deck out into tableau stacks
-        self.foundation = []
+        self.foundation = [Stack([],type="Foundation") for _ in range(4)]
         self.next_cards = Stack([],type="Next Cards")
         self.t_stack = []
         self.waste = Stack([], type="Waste")
@@ -88,9 +30,10 @@ class Solitaire(object):
             while s > 0:
                 self.t_stack[ts - 1].cards.append(self.deck.cards.pop(0))
                 s -= 1
-        
+    
         for c in self.deck.cards:
             c.visible = True
+        self.deal_next_cards()
 
     def show_cards(self):
         if not self.next_cards:
@@ -102,14 +45,13 @@ class Solitaire(object):
         else:
             next_card = "None"
         if num_next_cards >= 2:
-            following_cards = [c.card_id() for c in self.next_cards.cards[1:]]
+            following_cards = ', '.join([c.card_id() for c in self.next_cards.cards[1:]])
         else:
             following_cards = "None"
-        print(f"Next card:{next_card}")
-        for n, c in enumerate(following_cards, 1):
-            print(f"Following card {n}:{following_cards}")
+        print(f"Next card: {next_card}")
+        print(f"Following cards: {following_cards}")
         for n, s in enumerate(self.t_stack):
-            visible_cards = [c.card_id() for c in s.cards if c.visible]
+            visible_cards = ', '.join([c.card_id() for c in s.cards if c.visible])
             print(f"TS {n}: {visible_cards}")
         for n, s in enumerate(self.foundation):
             if len(s.cards) == 0:
@@ -131,113 +73,132 @@ class Solitaire(object):
         self.deck.cards = self.deck.cards[self.cards_per_turn :]
         self.show_cards()
         return True
-    
-    def remove_card(self,stack):
-        card = stack.remove_top_card()
-        if stack.type == "Foundation":
-            if not stack.cards:
-                self.foundation.remove(stack)
-                pass
-        return card
 
 
-    def move_card(self, action, dest_action=None):
-        # Determine if the action corresponds to a tableau stack, foundation, or next_cards stack
-        if action < len(self.t_stack):
-            source_stack = self.t_stack[action]
+    def move_card(self, source, dest=None, num_cards=1):
+        def foundation_logic(sd):
+            l = len(self.t_stack) + 4 > sd >= len(self.t_stack)
+            return(l)
+        def t_stack_logic(sd):
+            l = (sd < len(self.t_stack))
+            return l
+        def next_card_logic(sd):
+            l = (sd == len(self.t_stack) + 4)
+            return l
+        # Determine if the source corresponds to a tableau stack, foundation, or next_cards stack
+        if num_cards>1:
+            if not (t_stack_logic(source) and t_stack_logic(dest)):
+                print("Can only move more than one card from and to tableau stacks.")
+                return 0
+        if "Tableau Stack" in source.type:
+            source_stack = source
             if source_stack.is_empty():
                 print("Source stack empty.")
-                return False, 0
-            card = source_stack.get_top_card()
+                return 0
+            if num_cards==1:
+                card = source_stack.get_top_card()
+            else:
+                num_visible_cards = sum([c.visible for c in source_stack.cards])
+                if num_visible_cards < num_cards:
+                    print("Not enough visible cards in stack.")
+                    return 0
+                card = [source_stack.cards[n] for n in range(num_cards)]
+
             
-        elif action < len(self.t_stack) + 4:
-            index = action - len(self.t_stack)
-            if len(self.foundation) - 1 < index:
-                print("Foundation pile does not exist.")
-                return False, 0
-            source_stack = self.foundation[index]
+        elif source.type == "Foundation":
+            source_stack = source
             if len(source_stack.cards) == 0:
                 print("Foundation pile empty.")
-                return False, 0
+                return 0
             card = source_stack.get_top_card()
-        elif action == len(self.t_stack) + 4:
+        elif source.type == "Next Cards":
             if not self.next_cards.cards:
                 print("Next cards pile is empty.")
-                return False, 0
-            source_stack = self.next_cards
+                return 0
+            source_stack = source
             card = source_stack.get_top_card()
             self.show_cards()
             pass
         else:
-            print("Invalid action")
-            return False, 0
+            print("Invalid source")
+            return 0
         # Check if the selected card is visible
-        if not card.visible:
-            print("Selected card is not visible.")
-            return False, 0
+        if not isinstance(card, list):
+            if not card.visible:
+                print("Selected card is not visible.")
+                return 0
         # Check if the card can be moved to foundation
-        f_index = dest_action-len(self.t_stack)
-        if (len(self.t_stack)<=dest_action<len(self.t_stack)+4):
-            if len(self.t_stack)<=action < len(self.t_stack) + 4:
+        f_index = dest-len(self.t_stack)
+        if foundation_logic(dest):
+            if source.type == "Foundation":
                 print("Cannot move from foundation to foundation.")
-                return False, 0
-            if f_index < len(self.foundation):
+                return 0
+            if self.foundation[f_index].cards:
                 if (
                     self.foundation[f_index].cards[0].suit == card.suit
                     and self.foundation[f_index].cards[0].number == card.number - 1
                 ):
                     print(f"Card {card.card_id()} moved to foundation.")
-                    self.foundation[f_index].cards.insert(0, self.remove_card(source_stack))
+                    self.foundation[f_index].cards.insert(0, source_stack.remove_top_card())
                     if self.status():
-                        return True, 5
-                    return True, 1
+                        return 5
+                    return 2
                 else:
                     print(f"Card {card.card_id()} does not fit in foundation.")
-                    return False, 0
+                    return 0
             elif card.number == 1:
-                if f_index >= len(self.foundation):
-                    print(f"Card {card.card_id()} moved to new foundation pile.")
-                    new_f_stack = Stack([self.remove_card(source_stack)],type="Foundation")
-                    self.foundation.insert(0,new_f_stack)
-                    return True, 1
+                print(f"Card {card.card_id()} moved to new foundation pile.")
+                self.foundation[f_index].cards.append(source_stack.remove_top_card())
+                return 2
             else:
                 print(f"Card {card.card_id()} does not fit in foundation.")
-                return False, 0
+                return 0
         else:
-            if dest_action < len(self.t_stack):
-                dest_stack = self.t_stack[dest_action]
+            if t_stack_logic(dest):
+                if not isinstance(card,list):
+                    card = [card]
+                dest_stack = self.t_stack[dest]
                 if not dest_stack.cards:
-                    if card.number != 13:
+                    if card[0].number != 13:
                         print("Only kings can be moved to empty tableau stacks.")
-                        return False, 0
-                    dest_stack.cards.insert(0,self.remove_card(source_stack))
-                    print(f"Card {card.card_id()} moved to tableau stack {dest_action}.")
-                    return True, 1
+                        return 0
+                    for _ in card:
+                        dest_stack.cards.insert(0,source_stack.remove_top_card())
+                    print(f"Card {[c.card_id() for c in card]} moved to tableau stack {dest}.")
+                    return 1
                 
                 dest_card = dest_stack.get_top_card()
-                if dest_card.color == card.color:
+                if dest_card.color == card[-1].color:
                     print("Wrong color.")
-                    return False, 0
-                if dest_card.number == card.number + 1:
-                    dest_stack.cards.insert(0,self.remove_card(source_stack))
-                    print(f"Card {card.card_id()} moved to tableau stack {dest_action}.")
+                    return 0
+                if dest_card.number == card[-1].number + 1:
+                    if num_cards>1:
+                        self.show_cards()
+                        pass
+                    [dest_stack.cards.insert(n,source_stack.remove_top_card()) for n in range(num_cards)]
+                    print(f"Card {[c.card_id() for c in card]} moved to tableau stack {dest}.")
                     self.show_cards()
-                    return True, 1
+                    if source.type == "Foundation":
+                        return 0
+                    else:
+                        return 1
                 else:
-                    return False, 0
+                    print("Wrong number.")
+                    return 0
 
 
     def move_next_card(self, loc):
         cards = self.next_cards
         moved = self.move_card(cards, loc)
         if moved and self.waste.cards:
-            self.next_cards.append(self.waste.cards.pop(0))
+            self.next_cards.cards.append(self.waste.cards.pop(0))
+            
     def move_from_t_stack(self, t_stack, loc, cards=1):
-        cards = self.t_stack[t_stack].cards
+        cards = self.t_stack[t_stack]
         moved = self.move_card(cards, loc)
         if moved:
             if cards:
-                cards[0].visible=True
+                cards.cards[0].visible=True
             self.show_cards()
     
     def play(self):

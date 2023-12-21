@@ -1,6 +1,4 @@
-from this import d
-from modules.cards import Deck, Solitaire
-
+from modules.solitaire import Deck, Solitaire
 
 def main():
     deck = Deck()
