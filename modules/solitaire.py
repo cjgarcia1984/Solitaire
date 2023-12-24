@@ -2,7 +2,7 @@ from modules.card import Card
 from modules.deck import Deck
 from modules.stack import Stack
 import yaml
-
+from copy import deepcopy
 
 class Solitaire(object):
     def __init__(self, config=None, config_path=None):
@@ -26,7 +26,7 @@ class Solitaire(object):
                 self.config = {}
         else:
             self.config = config if config else {}
-
+        self.history = []
         self.num_t_stack = 7
         self.foundation = [Stack(stack_type="Foundation") for _ in range(4)]
         self.t_stack = [Stack(stack_type="Tableau Stack")
@@ -132,6 +132,7 @@ class Solitaire(object):
         Returns True if the operation is successful.
         """
         # Move current next cards to the waste pile
+        self.save_state()
         while self.next_cards.cards:
             card = self.next_cards.cards.pop(0)
             self.waste.cards.append(card)
@@ -175,6 +176,7 @@ class Solitaire(object):
         if isinstance(source, Stack):
             cards = self.get_cards_to_move(source, num_cards)
             if self.is_move_valid(source, dest, cards):
+                self.save_state()
                 result = self.process_move(source, dest, cards)
 
                 # Check if the source is a tableau stack and turn over the next card
@@ -397,7 +399,7 @@ class Solitaire(object):
         """
         print("Current board:")
         self.show_cards()
-        print("Enter your move or command (Enter to deal, 's' to show, 'q' to quit):")
+        print("Enter your move or command (Enter to deal, 's' to show, 'u' to undo, 'q' to quit):")
 
     def get_user_input(self):
         """
@@ -415,6 +417,9 @@ class Solitaire(object):
         Args:
             user_input (str): The user's input command or action.
         """
+        if user_input == 'u':
+            self.undo_move()
+            return
         if user_input == 's':
             self.show_cards()
         elif user_input == '':
@@ -500,3 +505,34 @@ class Solitaire(object):
         total_cards_in_foundation = sum(
             len(stack.cards) for stack in self.foundation)
         return total_cards_in_foundation == 52
+
+    def save_state(self):
+        """
+        Save the current state of the game.
+        """
+        # Create a deep copy of the current state
+        state = {
+            'foundation': deepcopy(self.foundation),
+            't_stack': deepcopy(self.t_stack),
+            'waste': deepcopy(self.waste),
+            'next_cards': deepcopy(self.next_cards),
+            'deck': deepcopy(self.deck)
+        }
+        # Push the copied state onto a stack
+        self.history.append(state)
+
+    def undo_move(self):
+        """
+        Undo the last move.
+        """
+        if self.history:
+            last_state = self.history.pop()
+            self.foundation = last_state['foundation']
+            self.t_stack = last_state['t_stack']
+            self.waste = last_state['waste']
+            self.next_cards = last_state['next_cards']
+            self.deck = last_state['deck']
+            print("Last move undone.")
+        else:
+            print("No more moves to undo.")
+
