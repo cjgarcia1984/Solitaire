@@ -10,7 +10,6 @@ import xmltodict
 import yaml
 
 
-
 def parse_xmls_as_dataframe(xmls, stop_on_error=False, logger=None) -> pd.DataFrame:
     """Parse a bunch of xmls and return a flag dataframe, XML does not have to be present, if it does not exist, no parsing is done."""
     df = None
@@ -184,9 +183,13 @@ def average_all_columns_by_group(data, group_list, method="mean"):
     if method == "std":
         df = data.groupby(by=group_list, as_index=False, sort=True).std()
     if method == "mean":
-        df = data.groupby(by=group_list, as_index=False, sort=True).mean(numeric_only=True)
+        df = data.groupby(by=group_list, as_index=False, sort=True).mean(
+            numeric_only=True
+        )
     elif method == "median":
-        df = data.groupby(by=group_list, as_index=False, sort=True).median(numeric_only=True)
+        df = data.groupby(by=group_list, as_index=False, sort=True).median(
+            numeric_only=True
+        )
 
     # Get list of columns that were dropped during averaged (wrong type)
     init_columns = list(data.columns)
@@ -266,8 +269,9 @@ def get_root():
     path = os.path.dirname(os.path.realpath("__file__"))
     return path
 
-def open_csv_chunks(path,**kwargs):
+
+def open_csv_chunks(path, **kwargs):
     """Open csv using pd.read_csv with chunking"""
-    df_iter = pd.read_csv(path,low_memory=False,chunksize=1000,**kwargs)
+    df_iter = pd.read_csv(path, low_memory=False, chunksize=1000, **kwargs)
     df = pd.concat(df_iter)
     return df
