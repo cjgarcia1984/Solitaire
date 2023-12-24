@@ -10,7 +10,6 @@ def main():
     while not s.complete:
         s.play()
 
-    print(s)
 
 
 if __name__ == "__main__":

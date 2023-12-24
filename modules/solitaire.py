@@ -84,12 +84,12 @@ class Solitaire(object):
         """
         print("Tableau:")
         max_length = max(len(s.cards) for s in self.t_stack)
-
-        # Print the identifiers for each tableau stack
-        for n, _ in enumerate(self.t_stack):
+    
+        # Print the identifiers for each tableau stack starting from 1
+        for n in range(1, len(self.t_stack) + 1):
             print(f"{n}\t", end='')
         print()
-
+    
         # Print the cards in each tableau stack, with the visible card at the bottom
         for i in range(max_length):
             for s in self.t_stack:
@@ -154,7 +154,7 @@ class Solitaire(object):
         else:
             print("No cards left to deal.")
 
-        self.show_cards()
+        #self.show_cards()
         return True
 
     def move_card(self, source, dest, num_cards=1):
@@ -169,6 +169,9 @@ class Solitaire(object):
         Returns:
             int: 0 if the move is invalid, otherwise a positive integer representing the successful move.
         """
+        if isinstance(dest, int):
+            dest = dest - 1  # Adjust for 0-based index
+
         if not self.is_valid_move_request(source, dest, num_cards):
             print("Invalid move.")
             return 0
@@ -202,13 +205,8 @@ class Solitaire(object):
         """
 
         # Validate move from foundation
-        if "Foundation" in source.type and isinstance(dest, int):
-            return self.is_valid_tableau_move(self.t_stack[dest], cards[0])
-
-        # Validate move between tableau stacks
-        if 'Tableau Stack' in source.type and isinstance(dest, int):
-            # Last card in the moving sequence
-            return self.is_valid_tableau_move(self.t_stack[dest], cards[0])
+        if isinstance(dest, int):
+            return self.is_valid_tableau_move(self.t_stack[dest], cards[0])   
 
         return True  # For other moves, add respective validations
 
@@ -269,7 +267,6 @@ class Solitaire(object):
             # Format the list of card representations into a string for output
             cards_str = ', '.join([str(card) for card in cards])
             print(f"Card {cards_str} moved to tableau stack.")
-            self.show_cards()
             return 1
 
         # Add any additional destination types here
@@ -292,7 +289,7 @@ class Solitaire(object):
             return True  # Destination is the foundation
         if isinstance(dest, int):
             # Destination is a tableau stack
-            return dest < len(self.t_stack) and ("Tableau Stack" in source.type or num_cards == 1)
+           return 0 <= dest - 1 < len(self.t_stack) and ("Tableau Stack" in source.type or num_cards == 1)
         return False
 
     def are_cards_movable(self, source_stack, num_cards):
@@ -449,12 +446,13 @@ class Solitaire(object):
         if source == 'n':
             source_stack = self.next_cards
             num_cards = 1  # Only one card can be moved from next cards
+        # Adjust for 1-based index
         elif source.isdigit():
-            if int(source) >= self.num_t_stack:
-                print(
-                    f"Invalid source. Please enter a number between 0 and {self.num_t_stack - 1}.")
+            source_index = int(source) - 1  # Convert to 0-based index
+            if source_index < 0 or source_index >= self.num_t_stack:
+                print(f"Invalid source. Please enter a number between 1 and {self.num_t_stack}.")
                 return
-            source_stack = self.t_stack[int(source)]
+            source_stack = self.t_stack[source_index]
             if dest == 'f':
                 num_cards = 1  # Only one card can be moved to the foundation
             else:
