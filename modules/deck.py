@@ -2,9 +2,10 @@ from modules.stack import Stack
 from modules.card import Card
 import random
 
+
 class Deck(Stack):
     def __init__(self, random_seed=None):
-        Stack.__init__(self, [], type="Deck")
+        Stack.__init__(self, [], stack_type="Deck")
         self.max = 13
         self.suits = ["Spades", "Hearts", "Diamonds", "Clubs"]
         for s in self.suits:

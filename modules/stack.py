@@ -1,28 +1,30 @@
-from typing import Iterable
-
-
 class Stack(object):
-    def __init__(self, cards: list,type=None):
-        if not isinstance(cards,Iterable):
-            cards = [cards]
-        self.cards = cards
-        self.type = type
+    def __init__(self, cards=None, stack_type=None):
+        self.cards = cards if cards else []
+        self.type = stack_type
+
+    def add_card(self, card):
+        self.cards.append(card)
+
+    def add_cards(self, cards):
+        self.cards.extend(cards)
+
+    def remove_card(self):
+        return self.cards.pop() if self.cards else None
 
     def get_top_card(self):
-        if self.cards:
-            top_card = self.cards[0]
-            return top_card
+        return self.cards[-1] if self.cards else None
 
-    def remove_top_card(self):
-        top_card = self.cards.pop(0)
-        self.show_top_card()
-        return top_card
+    def move_cards_to(self, destination, num_cards=1):
+        if len(self.cards) >= num_cards:
+            for _ in range(num_cards):
+                destination.add_card(self.remove_card())
 
     def is_empty(self):
-        if not self.cards:
-            return True
-    
-    def show_top_card(self):
-        if not self.cards:
-            return
-        self.cards[0].visible = True
+        return not self.cards
+
+    def __len__(self):
+        return len(self.cards)
+
+    def __repr__(self):
+        return ", ".join([str(card) for card in self.cards])
