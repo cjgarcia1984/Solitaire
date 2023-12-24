@@ -287,7 +287,7 @@ class Solitaire(object):
             self.deal_next_cards()
         elif user_input == 'q':
             print("Game ended.")
-            self.complete = True
+            exit()
         elif len(user_input) in [1, 2]:
             self.parse_and_execute_move(user_input)
         else:
