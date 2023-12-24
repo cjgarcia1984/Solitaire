@@ -42,14 +42,12 @@ class Solitaire(object):
         for card in self.deck.cards:
             card.set_visible(True)
 
-
         # Initial dealing of next cards, depending on the game configuration
         # Check if there are any cards in the deck before dealing
         if self.deck.cards:
             # Initial dealing of next cards, depending on the game configuration
             for _ in range(self.config.get('cards_per_turn', 3)):
                 self.next_cards.add_card(self.deck.remove_card())
-
 
     def show_cards(self):
         if not self.next_cards.cards and not self.deck.cards:
@@ -237,19 +235,6 @@ class Solitaire(object):
         is_valid_sequence = (top_dest_card.number == card.number + 1)
 
         return is_valid_color and is_valid_sequence
-
-    def move_to_tableau(self, source_stack, dest_stack, cards):
-        """Move the card(s) to the tableau stack."""
-        # Add the cards to the end of the destination stack
-        for card in cards:
-            dest_stack.add_card(card)
-            source_stack.remove_card()
-
-        # Format the list of card representations into a string
-        cards_str = ', '.join([str(card) for card in cards])
-        print(f"Card {cards_str} moved to tableau stack.")
-        self.show_cards()
-        return 1
 
     def move_to_foundation(self, source_stack, card):
         """Move the card to the foundation."""
