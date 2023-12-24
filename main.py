@@ -1,17 +1,16 @@
 from modules.solitaire import Deck, Solitaire
-import yaml
+
 
 def main():
     deck = Deck()
     for c in deck.cards:
         print(c.number, c.suit)
-        
+
     s = Solitaire(config_path="configs/config.yaml")
     while not s.complete:
         s.play()
 
     print(s)
-        
 
 
 if __name__ == "__main__":
