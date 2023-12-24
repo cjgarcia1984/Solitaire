@@ -6,8 +6,20 @@ import yaml
 
 class Solitaire(object):
     def __init__(self, config=None, config_path=None):
-        self.config = config if config else yaml.safe_load(
-            open(config_path)) if config_path else {}
+        # Attempt to load configuration from the file if provided
+        if config_path:
+            try:
+                with open(config_path, 'r') as file:
+                    self.config = yaml.safe_load(file)
+            except FileNotFoundError:
+                print(f"Error: Configuration file '{config_path}' not found.")
+                self.config = {}
+            except yaml.YAMLError as e:
+                print(f"Error reading configuration file: {e}")
+                self.config = {}
+        else:
+            self.config = config if config else {}
+
         self.num_t_stack = 7
         self.foundation = [Stack(stack_type="Foundation") for _ in range(4)]
         self.t_stack = [Stack(stack_type="Tableau Stack")
@@ -30,9 +42,12 @@ class Solitaire(object):
         self.deck.cards = [card.set_visible(True) for card in self.deck.cards]
 
         # Initial dealing of next cards, depending on the game configuration
-        for _ in range(self.config.get('cards_per_turn', 3)):
-            if self.deck.cards:
+        # Check if there are any cards in the deck before dealing
+        if self.deck.cards:
+            # Initial dealing of next cards, depending on the game configuration
+            for _ in range(self.config.get('cards_per_turn', 3)):
                 self.next_cards.add_card(self.deck.remove_card())
+
 
     def show_cards(self):
         if not self.next_cards.cards and not self.deck.cards:
