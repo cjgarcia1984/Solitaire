@@ -85,7 +85,7 @@ class Solitaire(object):
     def display_foundation_stacks(self):
         print("Foundation:")
         for n, s in enumerate(self.foundation):
-            top_card = str(s.get_top_card()) if s.cards else "[Empty]"
+            top_card = str(s.get_top_card()) if s.cards else "[]"
             print(f"F{n}: {top_card}", end='  ')
         print('\n' + '-' * 60)
 
