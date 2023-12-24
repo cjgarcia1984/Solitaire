@@ -24,4 +24,3 @@ class Card(object):
 
     def set_visible(self, visibility):
         self.visible = visibility
-        return self

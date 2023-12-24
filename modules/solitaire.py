@@ -38,8 +38,10 @@ class Solitaire(object):
                 card.visible = card_num == index  # Make the top card visible
                 stack.add_card(card)
 
-        # Remaining cards go into the deck
-        self.deck.cards = [card.set_visible(True) for card in self.deck.cards]
+        # Set visibility of remaining cards in the deck
+        for card in self.deck.cards:
+            card.set_visible(True)
+
 
         # Initial dealing of next cards, depending on the game configuration
         # Check if there are any cards in the deck before dealing
