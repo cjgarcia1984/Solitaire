@@ -139,7 +139,7 @@ class Solitaire(object):
 
         # Recycling waste pile if the deck is empty
         if not self.deck.cards and self.waste.cards:
-            print("Recycling waste pile.")
+            #print("Recycling waste pile.")
             self.deck.cards = self.waste.cards[:]
             self.waste.cards.clear()
 
@@ -173,7 +173,7 @@ class Solitaire(object):
             dest = dest - 1  # Adjust for 0-based index
 
         if not self.is_valid_move_request(source, dest, num_cards):
-            print("Invalid move.")
+            #print("Invalid move.")
             return 0
 
         if isinstance(source, Stack):
@@ -188,7 +188,7 @@ class Solitaire(object):
 
                 return result
 
-        print("Invalid source for move.")
+        #print("Invalid source for move.")
         return 0
 
     def is_move_valid(self, source, dest, cards):
@@ -366,16 +366,16 @@ class Solitaire(object):
                     # Move the card to the foundation stack
                     foundation_stack.add_card(source_stack.remove_card())
                     print(f"Card {str(card)} moved to foundation.")
-                    return 2 if not self.status() else 5
+                    return 5 if not self.status() else 100
 
             # If the foundation stack is empty and the card is an Ace (number 1)
             elif not foundation_stack.cards and card.number == 1:
                 # Move the card to the new foundation pile
                 foundation_stack.add_card(source_stack.remove_card())
                 print(f"Card {str(card)} moved to new foundation pile.")
-                return 2
+                return 5
 
-        print(f"Card {str(card)} does not fit in foundation.")
+        #print(f"Card {str(card)} does not fit in foundation.")
         return 0
 
     def play(self):
@@ -442,7 +442,9 @@ class Solitaire(object):
             dest = 'f'
         if len(parts) == 2:
             source, dest = parts
+        self.parse_parts(source, dest)
 
+    def parse_parts(self, source, dest, num_cards=None):
         if source == 'n':
             source_stack = self.next_cards
             num_cards = 1  # Only one card can be moved from next cards
@@ -455,10 +457,10 @@ class Solitaire(object):
             source_stack = self.t_stack[source_index]
             if dest == 'f':
                 num_cards = 1  # Only one card can be moved to the foundation
-            else:
+            elif num_cards is None:
                 num_cards = self.get_num_cards_to_move(source_stack)
         else:
-            print("Invalid source.")
+            #print("Invalid source.")
             return
 
         if dest == 'f':
@@ -469,7 +471,8 @@ class Solitaire(object):
             print("Invalid destination.")
             return
 
-        self.move_card(source_stack, dest_stack, num_cards)
+        result = self.move_card(source_stack, dest_stack, num_cards)
+        return result
 
     def get_num_cards_to_move(self, source_stack):
         """
