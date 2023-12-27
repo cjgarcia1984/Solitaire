@@ -1,2 +1,20 @@
 cards_per_turn: 3
-random_seed: 2
+random_seed: 4
+
+env:
+  action_log_file: action_log.csv
+  reward_values:
+    move_success: 0.1         # Reward for a successful move
+    move_fail: -0.001        # Penalty for an unsuccessful move
+    deal_cards: 0.0       # Penalty for dealing new cards
+    reveal_hidden: 1       # Reward for revealing a hidden card
+    add_to_foundation: 1      # Reward for adding a card to the foundation
+    remove_from_foundation: -1  # Penalty for removing a card from the foundation
+    move_king_to_empty_tableau: 1
+    repeat_action: -0.001       # Penalty for repeating an action
+    game_complete: 10      # Reward for completing the game
+
+  max_global_history_length: 10 # Maximum number of actions to keep in the global history
+  action_repeat_threshold: 2 # Number of times an action must be repeated before it is considered a loop
+  stagnation_threshold: 1000 # Number of actions to take without making progress before the game is considered to be stuck
+  
