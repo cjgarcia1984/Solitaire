@@ -51,7 +51,7 @@ class SolitaireEnv(gymnasium.Env):
         # Define observation space (using a simple representation for now)
         # For a more complex representation, you might need a multi-dimensional Box or a Dict space
         self.max_cards_per_stack = 24  # or any number that suits your game
-        num_elements = NUM_RANKS * self.max_cards_per_stack * 3  # 13 cards per stack, 3 details per card
+        num_elements = NUM_RANKS * self.max_cards_per_stack  # 13 cards per stack
         self.observation_space = spaces.Box(
             low=-1, high=52, shape=(num_elements,), dtype=np.int32)
 
@@ -222,31 +222,27 @@ class SolitaireEnv(gymnasium.Env):
 
     def get_observation(self):
         # Initialize the observation array
-        # Adjust the size to fit the new encoding: [stacks, cards_per_stack, details]
-        observation = np.zeros((13, self.max_cards_per_stack, 3), dtype=np.int8)
+        observation = np.zeros((13, self.max_cards_per_stack), dtype=np.int8)
 
         for stack_idx, stack in enumerate(self.game.t_stack + self.game.foundation + [self.game.waste] + [self.game.next_cards]):
-            for card_idx, card in enumerate(stack.cards):
-                # Encode each card as [color, suit, rank]
-                observation[stack_idx, card_idx] = self.encode_card(card)
+            for card_idx in range(self.max_cards_per_stack):
+                if card_idx < len(stack.cards):
+                    card = stack.cards[card_idx]
+                    if card.visible:
+                        observation[stack_idx, card_idx] = self.encode_card(card)
+                    else:
+                        observation[stack_idx, card_idx] = -1  # Hidden card
+                else:
+                    observation[stack_idx, card_idx] = 0  # Missing card
 
-        # Flatten the observation for compatibility with most RL algorithms
-        return observation.reshape(-1)
+        return observation.flatten()
 
     def encode_card(self, card):
         if card is None:
-            return [-1, -1, -1]  # Represent missing cards as [-1, -1, -1]
-
-        color = 0 if card.suit in ['Hearts', 'Diamonds'] else 1  # 0 for red, 1 for black
-        suit = ['Hearts', 'Diamonds', 'Clubs', 'Spades'].index(card.suit)
-        rank = card.number  # Assuming card.number is in [1, 13]
-
-        return [color, suit, rank]
-    
-    def card_to_index(self, card):
-        # Convert a card to an index in the observation space
-        suit = ['Hearts', 'Diamonds', 'Clubs', 'Spades'].index(card.suit)
-        return (card.number - 1) + (suit * NUM_RANKS)
+            return 0  # Represent missing cards as 0
+        suit_order = {'Hearts': 0, 'Diamonds': 13, 'Clubs': 26, 'Spades': 39}
+        card_number = suit_order[card.suit] + card.number
+        return card_number
 
     def decode_action(self, action):
         num_destinations = 8
