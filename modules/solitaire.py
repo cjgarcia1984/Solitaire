@@ -28,13 +28,28 @@ class Solitaire(object):
             self.config = config if config else {}
         self.history = []
         self.num_t_stack = 7
-        self.foundation = [Stack(stack_type="Foundation") for _ in range(4)]
+        self.foundation = {n: Stack(stack_type=f"Foundation") for n in ["Spades", "Hearts", "Clubs", "Diamonds"]}
         self.t_stack = [Stack(stack_type="Tableau Stack")
                         for _ in range(self.num_t_stack)]
         self.waste = Stack(stack_type="Waste")
         self.next_cards = Stack(stack_type="Next Cards")
         self.complete = False
+        self.show_errors = self.config.get('show_errors', True)
         self.deck = Deck(self.config.get("random_seed"))
+        self.move_dict = {
+        "no_cards_to_move": (-5, "No cards to move."),
+        "invalid_move_request": (-10, "Invalid move request."),
+        "cards_not_movable": (-5, "Cards in the source stack are not movable."),
+        "invalid_foundation_move_number": (-5, "Invalid move: Card number must be one more than the top card of the foundation stack."),
+        "invalid_foundation_move_ace": (-5, "Invalid move: Only aces can be moved to an empty foundation stack."),
+        "invalid_tableau_move_color": (-5, "Invalid move: Card colors must alternate in tableau stacks."),
+        "invalid_tableau_move_number": (-5, "Invalid move: Card number must be one less than the top card of the tableau stack."),
+        "invalid_tableau_move_king": (-5, "Invalid move: Only kings can be moved to an empty tableau stack."),
+        "successful_foundation_move": (10, "Valid move to foundation."),
+        "successful_tableau_move": (5, "Valid move to tableau stack."),
+        # Add other scenarios as needed
+    }
+        self.points = 0  # Initialize points
         self.deal_cards()
 
     def deal_cards(self):
@@ -121,9 +136,9 @@ class Solitaire(object):
         Display the cards in each of the foundation stacks.
         """
         print("Foundation:")
-        for n, s in enumerate(self.foundation):
+        for n, s in self.foundation.items():
             top_card = str(s.get_top_card()) if s.cards else "[]"
-            print(f"F{n}: {top_card}", end='  ')
+            print(f"{n}: {top_card}", end='  ')
         print('\n' + '-' * 60)
 
     def deal_next_cards(self):
@@ -139,7 +154,8 @@ class Solitaire(object):
 
         # Recycling waste pile if the deck is empty
         if not self.deck.cards and self.waste.cards:
-            #print("Recycling waste pile.")
+            if self.show_errors:
+                print("Recycling waste pile.")
             self.deck.cards = self.waste.cards[:]
             self.waste.cards.clear()
 
@@ -160,72 +176,116 @@ class Solitaire(object):
     def move_card(self, source, dest, num_cards=1):
         """
         Move a card or a sequence of cards from one stack to another.
+        Updated to handle error and success keys.
+        """
+        valid, move_key = self.validate_move(source, dest, num_cards)
+
+        points, message = self.move_dict[move_key]
+        self.points += points
+
+        if not valid:
+            return False, message, 0
+
+    
+        cards = self.get_cards_to_move(source, num_cards)
+        if cards:
+            self.save_state()  # Save the game state before making the move
+            result = self.process_move(source, dest, num_cards)
+            if not result:
+                return False, "Error moving cards.", 0
+            # Turn over the next card in the tableau stack if applicable
+            if source.type == "Tableau Stack" and source.cards:
+                source.cards[-1].visible = True
+    
+            return result, message, points
+
+        
+        return False, "No cards to move."
+
+
+
+    def process_move(self, source, dest, num_cards):
+        """
+        Process the move of cards from the source stack to the destination.
 
         Args:
-            source (Stack): The stack from which the card(s) are to be moved.
-            dest (Stack/int/str): The destination to move the card(s) to. Can be a Stack object or an identifier.
-            num_cards (int, optional): The number of cards to move. Defaults to 1.
+            source_stack (Stack): The stack from which the cards are being moved.
+            dest (int/str): The identifier of the destination stack or type.
+            cards (list): The cards to be moved.
 
         Returns:
-            int: 0 if the move is invalid, otherwise a positive integer representing the successful move.
+            tuple: (bool, str) - A boolean indicating the success of the move and a string describing the action.
         """
-        if isinstance(dest, int):
-            dest = dest - 1  # Adjust for 0-based index
+        cards_to_move = self.get_cards_to_move(source, num_cards)
+        for card in cards_to_move:
+            dest.add_card(card)
+            source.remove_card()
+        return True
 
-        if not self.is_valid_move_request(source, dest, num_cards):
-            #print("Invalid move.")
-            return 0
-
-        if isinstance(source, Stack):
-            cards = self.get_cards_to_move(source, num_cards)
-            if self.is_move_valid(source, dest, cards):
-                self.save_state()
-                result = self.process_move(source, dest, cards)
-
-                # Check if the source is a tableau stack and turn over the next card
-                if source.type == "Tableau Stack" and source.cards:
-                    source.cards[-1].visible = True
-
-                return result
-
-        #print("Invalid source for move.")
-        return 0
-
-    def is_move_valid(self, source, dest, cards):
+    def validate_move(self, source, dest, num_cards):
         """
         Check if a proposed move is valid based on the game rules.
-
-        Args:
-            source (Stack): The stack from which the card(s) are to be moved.
-            dest (Stack/int): The destination stack or identifier.
-            cards (list): The list of Card objects proposed to be moved.
-
-        Returns:
-            bool: True if the move is valid, False otherwise.
+        Now returns an error/success key instead of a message.
         """
+        cards = self.get_cards_to_move(source, num_cards)
 
-        # Validate move from foundation
-        if isinstance(dest, int):
-            return self.is_valid_tableau_move(self.t_stack[dest], cards[0])   
+        if not cards:
+            return False, "no_cards_to_move"
 
-        return True  # For other moves, add respective validations
+        if not self.are_cards_movable(source, len(cards)):
+            return False, "cards_not_movable"
 
-    def is_valid_move_request(self, source, dest, num_cards):
+        if dest.type == "Foundation":
+            valid, key = self.is_valid_foundation_move(cards[0])
+            if not valid:
+                return False, key
+            return True, "successful_foundation_move"
+        elif dest.type == "Tableau Stack":
+            valid, key = self.is_valid_tableau_move(dest, cards)
+            if not valid:
+                return False, key
+            return True, "successful_tableau_move"
+        else:
+            return False, "invalid_destination"
+
+    def get_foundation_stack(self, card):
+        return self.foundation[card.suit]
+    
+    def is_valid_foundation_move(self, card):
         """
-        Validate a move request based on the source, destination, and number of cards.
-
-        Args:
-            source (Stack): The source stack.
-            dest (Stack/int/str): The destination stack or identifier.
-            num_cards (int): Number of cards to be moved.
-
-        Returns:
-            bool: True if the move request is valid, False otherwise.
+        Validate a move to the foundation based on the game rules.
+        Updated to return specific dictionary keys.
         """
-        if isinstance(source, Stack):
-            return (self.is_valid_tableau_destination(dest) or isinstance(dest, str) and dest in ['f', 't']) and \
-                self.are_cards_movable(source, num_cards)
-        return False
+        if card.number == 1:
+            return True, "successful_foundation_move"
+        elif self.foundation[card.suit].cards:
+            if card.number == self.foundation[card.suit].get_top_card().number + 1:
+                return True, "successful_foundation_move"
+            else:
+                return False, "invalid_foundation_move_number"
+        else:
+            return False, "invalid_foundation_move_ace"
+
+    def is_valid_tableau_move(self, dest_stack, cards):
+        """
+        Validate a move to a tableau stack based on the game rules.
+        Updated to return specific dictionary keys.
+        """
+        top_card = cards[0]
+        if dest_stack.is_empty():
+            if top_card.number == 13:
+                return True, "successful_tableau_move"
+            else:
+                return False, "invalid_tableau_move_king"
+        else:
+            top_dest_card = dest_stack.get_top_card()
+            if top_dest_card.color == top_card.color:
+                return False, "invalid_tableau_move_color"
+            if top_dest_card.number != top_card.number + 1:
+                return False, "invalid_tableau_move_number"
+            return True, "successful_tableau_move"
+
+
 
     def get_cards_to_move(self, source_stack, num_cards):
         """
@@ -242,55 +302,7 @@ class Solitaire(object):
             return []  # Not enough cards to move
         return source_stack.cards[-num_cards:]
 
-    def process_move(self, source_stack, dest, cards):
-        """
-        Process the move of cards from the source stack to the destination.
 
-        Args:
-            source_stack (Stack): The stack from which the cards are being moved.
-            dest (int/str): The identifier of the destination stack or type.
-            cards (list): The cards to be moved.
-
-        Returns:
-            int: Numeric code indicating the result of the move.
-        """
-        if dest == 'f':
-            # Moving to foundation (only allow single card move)
-            return self.move_to_foundation(source_stack, cards[0]) if len(cards) == 1 else 0
-
-        elif isinstance(dest, int):  # Moving to tableau
-            dest_stack = self.t_stack[dest]
-            for card in cards:
-                dest_stack.add_card(card)
-                source_stack.remove_card()
-
-            # Format the list of card representations into a string for output
-            cards_str = ', '.join([str(card) for card in cards])
-            print(f"Card {cards_str} moved to tableau stack.")
-            return 1
-
-        # Add any additional destination types here
-
-        return 0
-
-    def is_valid_source_and_destination(self, source, dest, num_cards):
-        """
-        Check if the source and destination are valid for the move.
-
-        Args:
-            source (Stack): The source stack.
-            dest (int/str): The destination stack or its identifier.
-            num_cards (int): The number of cards to be moved.
-
-        Returns:
-            bool: True if the source and destination are valid, False otherwise.
-        """
-        if isinstance(dest, str) and dest == 'f':
-            return True  # Destination is the foundation
-        if isinstance(dest, int):
-            # Destination is a tableau stack
-           return 0 <= dest - 1 < len(self.t_stack) and ("Tableau Stack" in source.type or num_cards == 1)
-        return False
 
     def are_cards_movable(self, source_stack, num_cards):
         """
@@ -320,63 +332,6 @@ class Solitaire(object):
             bool: True if the destination is a valid tableau stack, False otherwise.
         """
         return isinstance(dest, int) and dest < len(self.t_stack)
-
-    def is_valid_tableau_move(self, dest_stack, card):
-        """
-        Validate a move to a tableau stack based on the game rules.
-
-        Args:
-            dest_stack (Stack): The destination tableau stack.
-            card (Card): The card to be moved.
-
-        Returns:
-            bool: True if the move is valid according to the tableau rules, False otherwise.
-        """
-
-        if dest_stack.is_empty():
-            # Only kings (number 13) can be moved to an empty stack
-            return card.number == 13
-
-        top_dest_card = dest_stack.get_top_card()
-
-        # Validate color - they must be different
-        is_valid_color = (top_dest_card.color != card.color)
-
-        # Validate sequence - card number must be exactly one less
-        is_valid_sequence = (top_dest_card.number == card.number + 1)
-
-        return is_valid_color and is_valid_sequence
-
-    def move_to_foundation(self, source_stack, card):
-        """
-        Attempt to move a card to the foundation.
-
-        Args:
-            source_stack (Stack): The stack from which the card is being moved.
-            card (Card): The card to be moved.
-
-        Returns:
-            int: Numeric code indicating the result of the move. 0 for failure, 2 for success, 5 for game completion.
-        """
-        for foundation_stack in self.foundation:
-            # If the foundation stack is not empty and the card suits match
-            if foundation_stack.cards and card.suit == foundation_stack.get_top_card().suit:
-                # If the card number is one more than the top card of the foundation stack
-                if card.number == foundation_stack.get_top_card().number + 1:
-                    # Move the card to the foundation stack
-                    foundation_stack.add_card(source_stack.remove_card())
-                    print(f"Card {str(card)} moved to foundation.")
-                    return 5 if not self.status() else 100
-
-            # If the foundation stack is empty and the card is an Ace (number 1)
-            elif not foundation_stack.cards and card.number == 1:
-                # Move the card to the new foundation pile
-                foundation_stack.add_card(source_stack.remove_card())
-                print(f"Card {str(card)} moved to new foundation pile.")
-                return 5
-
-        #print(f"Card {str(card)} does not fit in foundation.")
-        return 0
 
     def play(self):
         """
@@ -425,77 +380,93 @@ class Solitaire(object):
             print("Game ended.")
             exit()
         elif len(user_input) in [1, 2]:
-            self.parse_and_execute_move(user_input)
+            parts = list(user_input)
+            if len(parts) == 1:
+                source = parts[0]
+                dest = 'f'
+            if len(parts) == 2:
+                source, dest = parts
+            source = self.parse_source_stack(source)
+            if source is not None:
+                dest = self.parse_destination_stack(dest, source)
+                if dest is not None:
+                    num_cards = self.get_num_cards_to_move(source, dest)
+                    self.execute_move(source, dest, num_cards)
+                else:
+                    print("Invalid destination. Please try again.")
+            else:
+                print("Invalid source. Please try again.")
         else:
             print("Invalid input. Please try again.")
 
-    def parse_and_execute_move(self, move):
-        """
-        Parse and execute a card move based on user input.
-
-        Args:
-            move (str): The user's move command.
-        """
-        parts = list(move)
-        if len(parts) == 1:
-            source = parts[0]
-            dest = 'f'
-        if len(parts) == 2:
-            source, dest = parts
-        self.parse_parts(source, dest)
-
-    def parse_parts(self, source, dest, num_cards=None):
+    def parse_source_stack(self,source):
         if source == 'n':
             source_stack = self.next_cards
-            num_cards = 1  # Only one card can be moved from next cards
         # Adjust for 1-based index
         elif source.isdigit():
             source_index = int(source) - 1  # Convert to 0-based index
             if source_index < 0 or source_index >= self.num_t_stack:
                 print(f"Invalid source. Please enter a number between 1 and {self.num_t_stack}.")
-                return
+                return None
             source_stack = self.t_stack[source_index]
-            if dest == 'f':
-                num_cards = 1  # Only one card can be moved to the foundation
-            elif num_cards is None:
-                num_cards = self.get_num_cards_to_move(source_stack)
         else:
-            #print("Invalid source.")
-            return
+            return None
+        return source_stack
 
+    def parse_destination_stack(self, dest, source):
         if dest == 'f':
-            dest_stack = 'f'
+            dest_stack = self.get_foundation_stack(self.get_cards_to_move(source,1)[0])
         elif dest.isdigit():
-            dest_stack = int(dest)
+            dest = int(dest) - 1  # Convert to 0-based index
+            dest_stack = self.t_stack[dest]
         else:
-            print("Invalid destination.")
-            return
+            dest_stack = None
+        return dest_stack
+        
+    def execute_move(self, source, dest, num_cards):
+        result, msg, points = self.move_card(source, dest, num_cards)
+        if self.show_errors:
+            source_cards = dest.cards[-num_cards:]
+            dest_cards = dest.cards[:num_cards]
+            source_cards_str = ', '.join([str(card) for card in source_cards])
+            dest_cards_str = ', '.join([str(card) for card in dest_cards])
+            formatted_message = f"Move: {source_cards_str} > {dest_cards_str}. {msg}"
+            print(formatted_message)
+        self.show_score()
+        return result, msg, points
 
-        result = self.move_card(source_stack, dest_stack, num_cards)
-        return result
+    def show_score(self):
+        """
+        Display the current score.
+        """
+        print(f"Current score: {self.points}")
 
-    def get_num_cards_to_move(self, source_stack):
+    def get_num_cards_to_move(self, source, dest):
         """
         Determine the number of cards the user wishes to move from a source stack.
 
         Args:
-            source_stack (Stack): The stack from which the cards are to be moved.
+            source (Stack): The stack from which the cards are to be moved.
 
         Returns:
             int: The number of cards the user wishes to move.
         """
+        if source.type == "Next Cards":
+            return 1
+        if dest.type == "Foundation":
+            return 1
         visible_cards_count = len(
-            [card for card in source_stack.cards if card.visible])
+            [card for card in source.cards if card.visible])
         if visible_cards_count > 1:
             print(
-                f"Move how many cards from {source_stack.type}? (1-{visible_cards_count}, 'a' for all)")
+                f"Move how many cards from {source.type}? (1-{visible_cards_count}, 'a' for all)")
             user_input = input().lower().strip()
             if user_input.isdigit() and 1 <= int(user_input) <= visible_cards_count:
                 return int(user_input)
             elif user_input == 'a':
                 return visible_cards_count
         return 1  # Default to moving only the top card
-
+ 
     def status(self):
         """
         Check the status of the game to determine if it is complete.
@@ -504,7 +475,7 @@ class Solitaire(object):
             bool: True if the game is complete (all cards are in the foundation), False otherwise.
         """
         total_cards_in_foundation = sum(
-            len(stack.cards) for stack in self.foundation)
+            len(stack.cards) for stack in self.foundation.values())
         return total_cards_in_foundation == 52
 
     def save_state(self):
