@@ -30,7 +30,8 @@ class Solitaire(object):
         self.complete = False
         self.show_messages = self.config.get('show_messages', True)
         self.deck = Deck(self.config.get("random_seed"))
-        self.reward_dict = self.config.get('reward_dict', self.open_config('configs/rewards.yaml'))
+        self.reward_dict = self.config.get(
+            'reward_dict', self.open_config('configs/rewards.yaml'))
         self.points = 0  # Initialize points
         self.deal_cards()
 
@@ -147,9 +148,8 @@ class Solitaire(object):
 
         # Recycling waste pile if the deck is empty
         if not self.deck.cards and self.waste.cards:
-            if self.show_messages:
-                self.points += self.reward_dict["recycling_waste_pile"][0]
-                print(self.reward_dict["recycling_waste_pile"][1])
+            message = "recycling_waste_pile"
+            self.update_points_and_display_message(message)
             self.deck.cards = self.waste.cards[:]
             self.waste.cards.clear()
 
@@ -162,11 +162,12 @@ class Solitaire(object):
                 card.set_visible(True)
                 self.next_cards.cards.append(card)
                 # self.show_cards()
-                self.points += self.reward_dict["dealing_next_cards"][0]
+            message = "dealing_next_cards"
+            self.update_points_and_display_message(message, hide=True)
         else:
-            self.points += self.reward_dict["no_cards_to_deal"][0]
-            print(self.reward_dict["no_cards_to_deal"][1])
-
+            message = "dealing_next_cards"
+            self.update_points_and_display_message(message)
+        return message
 
     def move_card(self, source, dest, num_cards=1):
         """
@@ -182,8 +183,6 @@ class Solitaire(object):
             return False, message
 
         cards = self.get_cards_to_move(source, num_cards)
-        if cards is None:
-            return False, "requested_too_many_cards"
         if cards:
             self.save_state()  # Save the game state before making the move
             result = self.process_move(source, dest, num_cards)
@@ -224,7 +223,9 @@ class Solitaire(object):
         cards = self.get_cards_to_move(source, num_cards)
 
         if not cards:
-            return False, "no_cards_to_move"
+            return False, "requested_too_many_cards"
+        else:
+            self.points += self.reward_dict["requested_valid_number_of_cards"][0]
 
         if not self.are_cards_movable(source, len(cards)):
             return False, "cards_not_movable"
@@ -320,7 +321,7 @@ class Solitaire(object):
         """
         if len(source_stack.cards) < num_cards:
             return False  # Not enough cards in the stack
-        
+
         if source_stack.type == "Next Cards" and num_cards > 1:
             return False
 
@@ -450,8 +451,10 @@ class Solitaire(object):
                 if self.show_messages:
                     source_cards = dest.cards[-num_cards:]
                     dest_cards = dest.cards[:num_cards]
-                    source_cards_str = ', '.join([str(card) for card in source_cards])
-                    dest_cards_str = ', '.join([str(card) for card in dest_cards])
+                    source_cards_str = ', '.join(
+                        [str(card) for card in source_cards])
+                    dest_cards_str = ', '.join(
+                        [str(card) for card in dest_cards])
                     formatted_message = f"Move: {source_cards_str} > {dest_cards_str}. {msg}"
                     print(formatted_message)
                 if self.show_messages:
@@ -462,10 +465,17 @@ class Solitaire(object):
         else:
             return False, self.reward_dict["invalid_source"][1], self.reward_dict["invalid_source"][0]
 
+    def update_points_and_display_message(self, action_key, hide=False):
+        """
+        Update points and display message based on the action key.
 
-
-
-
+        Args:
+            action_key (str): Key to look up in the reward dictionary.
+        """
+        points, message = self.reward_dict[action_key]
+        self.points += points
+        if self.show_messages and not hide:
+            print(message)
 
     def show_score(self):
         """
