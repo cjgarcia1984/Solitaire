@@ -16,17 +16,9 @@ class Solitaire(object):
         """
         # Attempt to load configuration from the file if provided
         if config_path:
-            try:
-                with open(config_path, 'r') as file:
-                    self.config = yaml.safe_load(file)
-            except FileNotFoundError:
-                print(f"Error: Configuration file '{config_path}' not found.")
-                self.config = {}
-            except yaml.YAMLError as e:
-                print(f"Error reading configuration file: {e}")
-                self.config = {}
-        else:
-            self.config = config if config else {}
+            self.config = self.open_config(config_path)
+        if config:
+            self.config = config
         self.history = []
         self.num_t_stack = 7
         self.foundation = {n: Stack(stack_type=f"Foundation") for n in [
@@ -36,11 +28,22 @@ class Solitaire(object):
         self.waste = Stack(stack_type="Waste")
         self.next_cards = Stack(stack_type="Next Cards")
         self.complete = False
-        self.show_errors = self.config.get('show_errors', True)
+        self.show_messages = self.config.get('show_messages', True)
         self.deck = Deck(self.config.get("random_seed"))
-        self.move_dict = self.config.get('move_dict', {})
+        self.reward_dict = self.config.get('reward_dict', self.open_config('configs/rewards.yaml'))
         self.points = 0  # Initialize points
         self.deal_cards()
+
+    def open_config(self, config_path):
+        try:
+            with open(config_path, 'r') as file:
+                return yaml.safe_load(file)
+        except FileNotFoundError:
+            print(f"Error: Configuration file '{config_path}' not found.")
+            return {}
+        except yaml.YAMLError as e:
+            print(f"Error reading configuration file: {e}")
+            return {}
 
     def deal_cards(self):
         """
@@ -144,8 +147,9 @@ class Solitaire(object):
 
         # Recycling waste pile if the deck is empty
         if not self.deck.cards and self.waste.cards:
-            if self.show_errors:
-                print("Recycling waste pile.")
+            if self.show_messages:
+                self.points += self.reward_dict["recycling_waste_pile"][0]
+                print(self.reward_dict["recycling_waste_pile"][1])
             self.deck.cards = self.waste.cards[:]
             self.waste.cards.clear()
 
@@ -157,11 +161,12 @@ class Solitaire(object):
                 card = self.deck.cards.pop(0)
                 card.set_visible(True)
                 self.next_cards.cards.append(card)
+                # self.show_cards()
+                self.points += self.reward_dict["dealing_next_cards"][0]
         else:
-            print("No cards left to deal.")
+            self.points += self.reward_dict["no_cards_to_deal"][0]
+            print(self.reward_dict["no_cards_to_deal"][1])
 
-        # self.show_cards()
-        return True
 
     def move_card(self, source, dest, num_cards=1):
         """
@@ -170,23 +175,26 @@ class Solitaire(object):
         """
         valid, move_key = self.validate_move(source, dest, num_cards)
 
-        points, message = self.move_dict[move_key]
+        points, message = self.reward_dict[move_key]
         self.points += points
 
         if not valid:
-            return False, message, 0
+            return False, message
 
         cards = self.get_cards_to_move(source, num_cards)
+        if cards is None:
+            return False, "requested_too_many_cards"
         if cards:
             self.save_state()  # Save the game state before making the move
             result = self.process_move(source, dest, num_cards)
             if not result:
-                return False, "Error moving cards.", 0
+                return False, "Error moving cards."
             # Turn over the next card in the tableau stack if applicable
             if source.type == "Tableau Stack" and source.cards:
                 source.cards[-1].visible = True
+                self.points += self.reward_dict["reveal_hidden_card"][0]
 
-            return result, message, points
+            return result, message
 
         return False, "No cards to move."
 
@@ -220,12 +228,11 @@ class Solitaire(object):
 
         if not self.are_cards_movable(source, len(cards)):
             return False, "cards_not_movable"
+        else:
+            self.points += self.reward_dict["cards_movable"][0]
 
         if dest.type == "Foundation":
-            valid, key = self.is_valid_foundation_move(cards[0])
-            if not valid:
-                return False, key
-            return True, "successful_foundation_move"
+            return self.is_valid_foundation_move(cards[0])
         elif dest.type == "Tableau Stack":
             valid, key = self.is_valid_tableau_move(dest, cards)
             if not valid:
@@ -243,7 +250,7 @@ class Solitaire(object):
         Updated to return specific dictionary keys.
         """
         if card.number == 1:
-            return True, "successful_foundation_move"
+            return True, "ace_to_foundation"
         elif self.foundation[card.suit].cards:
             if card.number == self.foundation[card.suit].get_top_card().number + 1:
                 return True, "successful_foundation_move"
@@ -260,16 +267,30 @@ class Solitaire(object):
         top_card = cards[0]
         if dest_stack.is_empty():
             if top_card.number == 13:
-                return True, "successful_tableau_move"
+                if top_card.king_on_bottom == False:
+                    return True, "successful_tableau_move_king"
+                else:
+                    return True, "successful_tableau_transfer_king"
             else:
                 return False, "invalid_tableau_move_king"
         else:
             top_dest_card = dest_stack.get_top_card()
-            if top_dest_card.color == top_card.color:
-                return False, "invalid_tableau_move_color"
-            if top_dest_card.number != top_card.number + 1:
+            if top_dest_card.color != top_card.color:
+                correct_color = True
+            else:
+                correct_color = False
+            if top_dest_card.number == top_card.number + 1:
+                correct_number = True
+            else:
+                correct_number = False
+            if correct_color and correct_number:
+                return True, "successful_tableau_move"
+            if correct_color and not correct_number:
                 return False, "invalid_tableau_move_number"
-            return True, "successful_tableau_move"
+            if not correct_color and correct_number:
+                return False, "invalid_tableau_move_color"
+            else:
+                return False, "invalid_tableau_move_color_number"
 
     def get_cards_to_move(self, source_stack, num_cards):
         """
@@ -283,7 +304,7 @@ class Solitaire(object):
             list: A list of Card objects to be moved.
         """
         if len(source_stack.cards) < num_cards:
-            return []  # Not enough cards to move
+            return None  # Not enough cards to move
         return source_stack.cards[-num_cards:]
 
     def are_cards_movable(self, source_stack, num_cards):
@@ -299,6 +320,9 @@ class Solitaire(object):
         """
         if len(source_stack.cards) < num_cards:
             return False  # Not enough cards in the stack
+        
+        if source_stack.type == "Next Cards" and num_cards > 1:
+            return False
 
         # Check if all the selected cards are visible
         return all(card.visible for card in source_stack.cards[-num_cards:])
@@ -326,7 +350,7 @@ class Solitaire(object):
             self.handle_user_action(user_input)
             if self.status():
                 message = f"game_complete"
-                points = self.move_dict[message][0]
+                points = self.reward_dict[message][0]
                 self.points += points
                 self.show_score()
                 self.complete = True
@@ -374,16 +398,7 @@ class Solitaire(object):
                 dest = 'f'
             if len(parts) == 2:
                 source, dest = parts
-            source = self.parse_source_stack(source)
-            if source is not None:
-                dest = self.parse_destination_stack(dest, source)
-                if dest is not None:
-                    num_cards = self.get_num_cards_to_move(source, dest)
-                    self.execute_move(source, dest, num_cards)
-                else:
-                    print("Invalid destination. Please try again.")
-            else:
-                print("Invalid source. Please try again.")
+            self.execute_move(source, dest)
         else:
             print("Invalid input. Please try again.")
 
@@ -404,26 +419,53 @@ class Solitaire(object):
 
     def parse_destination_stack(self, dest, source):
         if dest == 'f':
-            dest_stack = self.get_foundation_stack(
-                self.get_cards_to_move(source, 1)[0])
+            cards_to_move = self.get_cards_to_move(source, 1)
+            if cards_to_move:
+                dest_stack = self.get_foundation_stack(cards_to_move[0])
+            else:
+                dest_stack = None
+
         elif dest.isdigit():
             dest = int(dest) - 1  # Convert to 0-based index
+            if dest < 0 or dest >= self.num_t_stack:
+                print(
+                    f"Invalid destination. Please enter a number between 1 and {self.num_t_stack}.")
+                return None
             dest_stack = self.t_stack[dest]
         else:
             dest_stack = None
         return dest_stack
 
-    def execute_move(self, source, dest, num_cards):
-        result, msg, points = self.move_card(source, dest, num_cards)
-        if self.show_errors:
-            source_cards = dest.cards[-num_cards:]
-            dest_cards = dest.cards[:num_cards]
-            source_cards_str = ', '.join([str(card) for card in source_cards])
-            dest_cards_str = ', '.join([str(card) for card in dest_cards])
-            formatted_message = f"Move: {source_cards_str} > {dest_cards_str}. {msg}"
-            print(formatted_message)
-        self.show_score()
-        return result, msg, points
+    def execute_move(self, source, dest, num_cards=None):
+        source = self.parse_source_stack(source)
+        if source is not None:
+            dest = self.parse_destination_stack(dest, source)
+            if dest is not None:
+                self.points += self.reward_dict["valid_source_and_valid_destination"][0]
+                if num_cards is None:
+                    num_cards = self.get_num_cards_to_move(source, dest)
+                points = self.points
+                result, msg = self.move_card(source, dest, num_cards)
+                points = self.points - points
+                if self.show_messages:
+                    source_cards = dest.cards[-num_cards:]
+                    dest_cards = dest.cards[:num_cards]
+                    source_cards_str = ', '.join([str(card) for card in source_cards])
+                    dest_cards_str = ', '.join([str(card) for card in dest_cards])
+                    formatted_message = f"Move: {source_cards_str} > {dest_cards_str}. {msg}"
+                    print(formatted_message)
+                if self.show_messages:
+                    self.show_score()
+                return result, msg, points
+            else:
+                return False, self.reward_dict["valid_source_invalid_destination"][0], self.reward_dict["valid_source_invalid_destination"][0]
+        else:
+            return False, self.reward_dict["invalid_source"][1], self.reward_dict["invalid_source"][0]
+
+
+
+
+
 
     def show_score(self):
         """
@@ -474,6 +516,7 @@ class Solitaire(object):
         """
         # Create a deep copy of the current state
         state = {
+            'points': self.points,
             'foundation': deepcopy(self.foundation),
             't_stack': deepcopy(self.t_stack),
             'waste': deepcopy(self.waste),
@@ -489,6 +532,7 @@ class Solitaire(object):
         """
         if self.history:
             last_state = self.history.pop()
+            self.points = last_state['points']
             self.foundation = last_state['foundation']
             self.t_stack = last_state['t_stack']
             self.waste = last_state['waste']

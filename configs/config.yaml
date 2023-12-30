@@ -1,36 +1,7 @@
 cards_per_turn: 3
-random_seed: 4
-move_dict:
-  no_cards_to_move: 
-    - -1
-    - "No cards to move."
-  cards_not_movable: 
-    - -5
-    - "Cards in the source stack are not movable."
-  invalid_foundation_move_number: 
-    - -5
-    - "Invalid move: Card number must be one more than the top card of the foundation stack."
-  invalid_foundation_move_ace: 
-    - -5
-    - "Invalid move: Only aces can be moved to an empty foundation stack."
-  invalid_tableau_move_color: 
-    - -5
-    - "Invalid move: Card colors must alternate in tableau stacks."
-  invalid_tableau_move_number: 
-    - -5
-    - "Invalid move: Card number must be one less than the top card of the tableau stack."
-  invalid_tableau_move_king: 
-    - -5
-    - "Invalid move: Only kings can be moved to an empty tableau stack."
-  successful_foundation_move: 
-    - 10
-    - "Valid move to foundation."
-  successful_tableau_move: 
-    - 5
-    - "Valid move to tableau stack."
-  game_complete: 
-    - 100
-    - "Congratulations! You have completed the game."
+random_seed: 5
+show_messages: false
+
     
 env:
   action_log_file: action_log.csv
