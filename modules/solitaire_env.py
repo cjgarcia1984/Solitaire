@@ -71,6 +71,7 @@ class SolitaireEnv(gymnasium.Env):
         self.move_count = 0
         self.model_stats = {}
         self.no_moves = []
+        self.games_completed = 0
 
     def reset(self, seed=2, return_info=False, options=None):
         self.steps_since_progress = 0
@@ -107,38 +108,45 @@ class SolitaireEnv(gymnasium.Env):
             messages = self.game.deal_next_cards()
             self.steps_since_progress += 1
             deal = True
+            move_result = False
         else:
             deal = False
             source_stack = self.get_stack(source_idx)
             dest_stack = self.get_stack(dest_idx)
             move_result, messages = self.game.execute_move(
                 source_stack, dest_stack, num_cards=num_cards)
-            
-            if move_result:
-                self.move_count += 1
-            if move_result and reward > 10:
-                self.steps_since_progress = 0
-            else:
-                self.steps_since_progress += 1
 
         reward = self.game.reward_points(messages)
+
+        if move_result:
+            self.move_count += 1
+        if move_result and reward > 10:
+            self.steps_since_progress = 0
+        else:
+            self.steps_since_progress += 1
+
+        
         # Check for game stagnation
         terminated = self.game.complete
 
         if self.steps_since_progress >= self.config.get("env").get('stagnation_threshold', 1000):
+            moves = False
             if deal:
-                if not self.game.check_available_moves():
-                    if self.game.next_cards.cards:
-                        if self.no_moves.count(self.game.next_cards.cards[-1]) > 2:
-                            terminated = True
-                            end_message = "No more moves available. Cards remain in deck."
+                if not moves:
+                    if not self.game.check_available_moves():
+                        moves = False
+                        if self.game.next_cards.cards:
+                            if self.no_moves.count(self.game.next_cards.cards[-1]) > 2:
+                                terminated = True
+                                end_message = "No more moves available. Cards remain in deck."
+                        else:
+                            if not self.game.deck.cards and not self.game.waste.cards:
+                                terminated = True
+                                end_message = "No more moves available. Deck and waste are empty."
+                        self.no_moves.append(self.game.next_cards.cards[-1])
                     else:
-                        if not self.game.deck.cards and not self.game.waste.cards:
-                            terminated = True
-                            end_message = "No more moves available. Deck and waste are empty."
-                    self.no_moves.append(self.game.next_cards.cards[-1])
-                else: 
-                    self.no_moves = []
+                        moves = True
+                        self.no_moves = []
         else:
             self.no_moves = []
 
@@ -155,6 +163,7 @@ class SolitaireEnv(gymnasium.Env):
         
         if self.game.complete:
             terminated = True
+            self.games_completed += 1
             end_message = "Game complete.  You win!"
 
         if terminated:

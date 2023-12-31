@@ -42,14 +42,14 @@ invalid_foundation_move_ace:
   - -15
   - "Invalid move: Only aces can be moved to an empty foundation stack."
 successful_foundation_move: 
-  - 5000
+  - 2500
   - "Valid move to foundation."
 ace_to_foundation: 
-  - 5000
+  - 2500
   - "Valid move to empty foundation."
 # Tableau
 reveal_hidden_card: 
-  - 2500
+  - 1000
   - "Turning over card."
 invalid_tableau_move_color: 
   - -1
@@ -67,12 +67,12 @@ successful_tableau_move:
   - 100
   - "Valid move to tableau stack."
 successful_tableau_move_king:
-  - 2500
+  - 1000
   - "Valid move to empty tableau stack."
 successful_tableau_transfer_king:
   - 0
   - "Valid move from one empty stack to another."
 # Complete
 game_complete: 
-  - 10000
+  - 50000
   - "Congratulations! You have completed the game."
