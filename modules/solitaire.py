@@ -33,6 +33,7 @@ class Solitaire(object):
         self.reward_dict = self.config.get(
             'reward_dict', self.open_config('configs/rewards.yaml'))
         self.points = 0  # Initialize points
+        self.num_waste_cards = 0
         self.deal_cards()
 
     def open_config(self, config_path):
@@ -141,6 +142,7 @@ class Solitaire(object):
         Returns True if the operation is successful.
         """
         # Move current next cards to the waste pile
+        messages = []
         self.save_state()
         while self.next_cards.cards:
             card = self.next_cards.cards.pop(0)
@@ -148,8 +150,13 @@ class Solitaire(object):
 
         # Recycling waste pile if the deck is empty
         if not self.deck.cards and self.waste.cards:
-            message = "recycling_waste_pile"
-            self.update_points_and_display_message(message)
+            waste_card_count = len(self.waste.cards)
+            if waste_card_count < self.num_waste_cards:
+                messages.append("recycle_waste_pile_and_used_cards")
+            else:
+                messages.append("recycling_waste_pile")
+            self.num_waste_cards = waste_card_count
+
             self.deck.cards = self.waste.cards[:]
             self.waste.cards.clear()
 
@@ -162,40 +169,38 @@ class Solitaire(object):
                 card.set_visible(True)
                 self.next_cards.cards.append(card)
                 # self.show_cards()
-            message = "dealing_next_cards"
-            self.update_points_and_display_message(message, hide=True)
+            messages.append("dealing_next_cards")
         else:
-            message = "dealing_next_cards"
-            self.update_points_and_display_message(message)
-        return message
+            messages.append("no_cards_to_deal")
+        return messages
 
-    def move_card(self, source, dest, num_cards=1):
+    def move_card(self, source, dest, num_cards):
         """
         Move a card or a sequence of cards from one stack to another.
         Updated to handle error and success keys.
         """
-        valid, move_key = self.validate_move(source, dest, num_cards)
-
-        points, message = self.reward_dict[move_key]
-        self.points += points
+        messages = []
+        valid, move_keys = self.validate_move(source, dest, num_cards)
+        messages.extend(move_keys)
 
         if not valid:
-            return False, message
+            return False, messages
 
         cards = self.get_cards_to_move(source, num_cards)
         if cards:
             self.save_state()  # Save the game state before making the move
             result = self.process_move(source, dest, num_cards)
             if not result:
-                return False, "Error moving cards."
+                messages.append("error_moving_cards")
+                return False, messages
             # Turn over the next card in the tableau stack if applicable
             if source.type == "Tableau Stack" and source.cards:
                 source.cards[-1].visible = True
-                self.points += self.reward_dict["reveal_hidden_card"][0]
-
-            return result, message
-
-        return False, "No cards to move."
+                messages.append("reveal_hidden_card")
+            return result, messages
+        else:
+            messages.append("no_cards_to_move")
+            return False, messages
 
     def process_move(self, source, dest, num_cards):
         """
@@ -221,26 +226,38 @@ class Solitaire(object):
         Now returns an error/success key instead of a message.
         """
         cards = self.get_cards_to_move(source, num_cards)
-
+        messages = []
         if not cards:
-            return False, "requested_too_many_cards"
+            messages.append("requested_too_many_cards")
+            return False, messages
         else:
-            self.points += self.reward_dict["requested_valid_number_of_cards"][0]
+            messages.append("requested_valid_number_of_cards")
 
         if not self.are_cards_movable(source, len(cards)):
-            return False, "cards_not_movable"
+            messages.append("cards_not_movable")
+            return False, messages
         else:
-            self.points += self.reward_dict["cards_movable"][0]
+            messages.append("cards_movable")
 
         if dest.type == "Foundation":
-            return self.is_valid_foundation_move(cards[0])
+            if num_cards > 1:
+                messages.append("invalid_foundation_move_number")
+                return False, messages
+            else:
+                result, message = self.is_valid_foundation_move(cards[0])
+                messages.append(message)
+                return result, messages
         elif dest.type == "Tableau Stack":
-            valid, key = self.is_valid_tableau_move(dest, cards)
-            if not valid:
-                return False, key
-            return True, "successful_tableau_move"
+            result, message = self.is_valid_tableau_move(dest, cards)
+            messages.append(message)
+            if not result:
+                return False, messages
+            else:
+                messages.append("successful_tableau_move")
+                return True, messages
         else:
-            return False, "invalid_destination"
+            messages.append("invalid_destination")
+            return False, messages
 
     def get_foundation_stack(self, card):
         return self.foundation[card.suit]
@@ -347,6 +364,12 @@ class Solitaire(object):
         self.complete = self.status()
         while not self.complete:
             self.show_current_state()
+            available_moves = self.check_available_moves()
+            if self.show_messages:
+                print("Available moves:")
+                for am in available_moves:
+                    print(f"{am[0]} > {am[1]} ({am[2]} cards)")
+
             user_input = self.get_user_input()
             self.handle_user_action(user_input)
             if self.status():
@@ -388,7 +411,7 @@ class Solitaire(object):
         if user_input == 's':
             self.show_cards()
         elif user_input == '':
-            self.deal_next_cards()
+            self.reward_points(self.deal_next_cards())
         elif user_input == 'q':
             print("Game ended.")
             exit()
@@ -399,9 +422,27 @@ class Solitaire(object):
                 dest = 'f'
             if len(parts) == 2:
                 source, dest = parts
-            self.execute_move(source, dest)
+            result, messages = self.execute_move(source, dest)
+            points = self.reward_points(messages)
+
         else:
             print("Invalid input. Please try again.")
+
+    def reward_points(self, messages, hide=False):
+        """
+        Reward points based on the messages returned from the game.
+        """
+        move_points = 0
+        for message in messages:
+            points, full_msg = self.reward_dict[message]
+            if self.show_messages and not hide:
+                print(full_msg)
+            self.points += points
+            move_points += points
+        if self.show_messages and not hide:
+            print(f"Total points for move: {move_points}")
+            self.show_score()
+        return move_points
 
     def parse_source_stack(self, source):
         if source == 'n':
@@ -438,16 +479,19 @@ class Solitaire(object):
         return dest_stack
 
     def execute_move(self, source, dest, num_cards=None):
+        messages = []
         source = self.parse_source_stack(source)
         if source is not None:
             dest = self.parse_destination_stack(dest, source)
             if dest is not None:
-                self.points += self.reward_dict["valid_source_and_valid_destination"][0]
+                messages.append("valid_source_and_valid_destination")
                 if num_cards is None:
                     num_cards = self.get_num_cards_to_move(source, dest)
-                points = self.points
-                result, msg = self.move_card(source, dest, num_cards)
-                points = self.points - points
+                result, move_msgs = self.move_card(source, dest, num_cards)
+                if result:
+                    if dest.type == "Foundation":
+                        self.complete = self.status()
+                messages.extend(move_msgs)
                 if self.show_messages:
                     source_cards = dest.cards[-num_cards:]
                     dest_cards = dest.cards[:num_cards]
@@ -455,27 +499,16 @@ class Solitaire(object):
                         [str(card) for card in source_cards])
                     dest_cards_str = ', '.join(
                         [str(card) for card in dest_cards])
-                    formatted_message = f"Move: {source_cards_str} > {dest_cards_str}. {msg}"
+                    formatted_message = f"Move: {source_cards_str} > {dest_cards_str}. {[messages][-1]}"
                     print(formatted_message)
-                if self.show_messages:
-                    self.show_score()
-                return result, msg, points
+
             else:
-                return False, self.reward_dict["valid_source_invalid_destination"][0], self.reward_dict["valid_source_invalid_destination"][0]
+                result = False
+                messages.append("valid_source_invalid_destination")
         else:
-            return False, self.reward_dict["invalid_source"][1], self.reward_dict["invalid_source"][0]
-
-    def update_points_and_display_message(self, action_key, hide=False):
-        """
-        Update points and display message based on the action key.
-
-        Args:
-            action_key (str): Key to look up in the reward dictionary.
-        """
-        points, message = self.reward_dict[action_key]
-        self.points += points
-        if self.show_messages and not hide:
-            print(message)
+            result = False
+            messages.append("invalid_source")
+        return result, messages
 
     def show_score(self):
         """
@@ -483,7 +516,7 @@ class Solitaire(object):
         """
         print(f"Current score: {self.points}")
 
-    def get_num_cards_to_move(self, source, dest):
+    def get_num_cards_to_move(self, source, dest, ):
         """
         Determine the number of cards the user wishes to move from a source stack.
 
@@ -551,3 +584,63 @@ class Solitaire(object):
             print("Last move undone.")
         else:
             print("No more moves to undo.")
+
+    def check_available_moves(self):
+        """
+        Check for available moves in the game and return a list of possible moves,
+        including moves involving multiple cards.
+
+        Returns:
+            list: A list of tuples representing the possible moves. Each tuple contains
+                  the source stack, the destination stack, and the number of cards to be moved.
+        """
+        possible_moves = []
+
+        # Check for moves from tableau to foundation or other tableau stacks
+        for i, source_stack in enumerate(self.t_stack):
+            for num_cards in range(1, len(source_stack.cards) + 1):
+                cards = source_stack.cards[-num_cards:]
+                if all(card.visible for card in cards):  # Only consider visible cards
+                    # Format each card for color
+                    cards_str = ', '.join([str(card) for card in cards])
+
+                    # Check for moves to the foundation
+                    for suit, foundation_stack in self.foundation.items():
+                        if num_cards == 1 and self.is_valid_foundation_move(cards[0])[0] and cards[0].suit == suit:
+                            possible_moves.append(
+                                (f"{i+1}: [{cards_str}]", "Foundation", num_cards))
+
+                    # Check for moves to other tableau stacks
+                    for j, dest_stack in enumerate(self.t_stack):
+                        if i != j and self.is_valid_tableau_move(dest_stack, cards)[0]:
+                            reveal_hidden = len(
+                                source_stack.cards) > num_cards and not source_stack.cards[-num_cards - 1].visible
+                            empty_tableau = (len(source_stack.cards) == num_cards) and (
+                                cards[0].number != 13)
+                            if reveal_hidden or empty_tableau:
+                                dest_card_str = str(
+                                    dest_stack.cards[-1]) if dest_stack.cards else 'Empty'
+                                move_description = (
+                                    f"{i+1}: [{cards_str}]", f"{j+1}: {dest_card_str}", num_cards)
+                                possible_moves.append(move_description)
+
+        # Check for moves from next cards to tableau or foundation
+        if self.next_cards.cards:
+            next_card = self.next_cards.get_top_card()
+            next_card_str = str(next_card)
+
+            # Check for moves to the foundation
+            for suit, foundation_stack in self.foundation.items():
+                if self.is_valid_foundation_move(next_card)[0] and next_card.suit == suit:
+                    possible_moves.append(
+                        (f"N: {next_card_str}", "Foundation", 1))
+
+            # Check for moves to tableau stacks
+            for i, dest_stack in enumerate(self.t_stack):
+                if self.is_valid_tableau_move(dest_stack, [next_card])[0]:
+                    dest_card_str = str(
+                        dest_stack.cards[-1]) if dest_stack.cards else 'Empty'
+                    possible_moves.append(
+                        (f"N: {next_card_str}", f"{i+1}: {dest_card_str}", 1))
+
+        return possible_moves

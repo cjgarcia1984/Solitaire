@@ -17,7 +17,7 @@ check_env(env, warn=True)
 def train_dqn_agent():
     # Initialize the agent
     model = DQN(MlpPolicy, env, verbose=1,
-                learning_rate=0.000001,
+                learning_rate=0.0001,
                 batch_size=16,
                 learning_starts=50000,
                 buffer_size=5000000,
@@ -31,7 +31,7 @@ def train_dqn_agent():
 
     # Train the agent
     print("Training the DQN agent...")
-    model.learn(total_timesteps=1000000, callback=callback)
+    model.learn(total_timesteps=10000000, callback=callback)
     print("Training completed!")
 
     return model

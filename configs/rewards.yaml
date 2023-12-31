@@ -1,49 +1,55 @@
 
 # Deck
 dealing_next_cards: 
-  - -1
+  - -5
   - "Dealing next cards."
 recycling_waste_pile:
-  - 0
+  - -15
   - "Recycling waste pile."
+recycle_waste_pile_and_used_cards:
+  - 5
+  - "Recycling waste pile and used cards."
 no_cards_to_deal: 
   - -1
   - "No cards to deal."
 # Moves
+requested_too_many_cards:
+  - -10
+  - "Invalid move: Requested too many cards."
+requested_valid_number_of_cards:
+  - 1
+  - "Valid move: Requested valid number of cards."
 invalid_source: 
-  - -1
+  - -2
   - "Invalid move: Source stack is invalid."
 valid_source_invalid_destination: 
-  - 1
+  - 2
   - "Invalid move: Source stack is valid but destination stack is invalid."
 valid_source_and_valid_destination: 
-  - 2
-  - "Valid move."
-no_cards_to_move: 
-  - -1
-  - "Invalid move: No cards to move."
+  - 5
+  - "Valid source and destination."
 cards_not_movable: 
-  - -1
+  - -5
   - "Invalid move: Cards in the source stack are not movable."
 cards_movable:
-  - 1
+  - 5
   - "Invalid move: Cards in the source stack are movable."
 # Foundation
 invalid_foundation_move_number: 
-  - 1
+  - -10
   - "Invalid move: Correct suit but card number must be one more than the top card of the foundation stack."
 invalid_foundation_move_ace: 
-  - -5
+  - -15
   - "Invalid move: Only aces can be moved to an empty foundation stack."
 successful_foundation_move: 
-  - 1000
+  - 5000
   - "Valid move to foundation."
 ace_to_foundation: 
-  - 2000
+  - 5000
   - "Valid move to empty foundation."
 # Tableau
 reveal_hidden_card: 
-  - 1000
+  - 2500
   - "Turning over card."
 invalid_tableau_move_color: 
   - -1
@@ -58,10 +64,10 @@ invalid_tableau_move_king:
   - -5
   - "Invalid move: Only kings can be moved to an empty tableau stack."
 successful_tableau_move: 
-  - 500
+  - 100
   - "Valid move to tableau stack."
 successful_tableau_move_king:
-  - 2000
+  - 2500
   - "Valid move to empty tableau stack."
 successful_tableau_transfer_king:
   - 0

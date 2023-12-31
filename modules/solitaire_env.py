@@ -36,16 +36,16 @@ class SolitaireEnv(gymnasium.Env):
         with open(self.action_log_file, 'w', newline='') as file:
             writer = csv.writer(file)
             writer.writerow(['total_episode_count', 'episode', 'step', 'action', 'source_stack',
-                            'destination_stack', 'num_cards', 'reward', 'terminated', 'exploration_rate'])
+                            'destination_stack', 'num_cards', 'reward', 'terminated', 'exploration_rate', 'return_message'])
 
-        self.num_source_stacks = 10
+        self.num_source_stacks = 9
         self.num_destinations = 8  # 7 tableau stacks, 1 foundation stack
         # Maximum number of cards that can be moved at once
         self.max_cards_per_move = NUM_RANKS
         # Define action space (source_stack, destination_stack, num_cards)
         # 9 source stacks, 8 destination stacks, 1 card
         self.action_space = spaces.Discrete(
-            self.num_source_stacks * self.num_destinations * self.max_cards_per_move)
+            self.num_source_stacks * self.num_destinations * self.max_cards_per_move + 1)
         self.action_repeat_threshold = 2
 
         # Number of steps with no progress to consider stagnation
@@ -70,6 +70,7 @@ class SolitaireEnv(gymnasium.Env):
         self.current_step = 0
         self.move_count = 0
         self.model_stats = {}
+        self.no_moves = []
 
     def reset(self, seed=2, return_info=False, options=None):
         self.steps_since_progress = 0
@@ -80,6 +81,7 @@ class SolitaireEnv(gymnasium.Env):
         config.update({'random_seed': seed})
         self.game = Solitaire(config)
         print("New game started.")
+        self.no_moves = []
         observation = self.get_observation()
         info = {}  # You can add additional reset info if needed
         self.current_episode += 1
@@ -102,13 +104,16 @@ class SolitaireEnv(gymnasium.Env):
         # Execute the action
 
         if source_idx == 9:  # Deal next cards action
-            self.game.deal_next_cards()
+            messages = self.game.deal_next_cards()
             self.steps_since_progress += 1
+            deal = True
         else:
+            deal = False
             source_stack = self.get_stack(source_idx)
             dest_stack = self.get_stack(dest_idx)
-            move_result, message, reward = self.game.execute_move(
+            move_result, messages = self.game.execute_move(
                 source_stack, dest_stack, num_cards=num_cards)
+            
             if move_result:
                 self.move_count += 1
             if move_result and reward > 10:
@@ -116,15 +121,26 @@ class SolitaireEnv(gymnasium.Env):
             else:
                 self.steps_since_progress += 1
 
+        reward = self.game.reward_points(messages)
         # Check for game stagnation
         terminated = self.game.complete
 
         if self.steps_since_progress >= self.config.get("env").get('stagnation_threshold', 1000):
-            terminated = True
-            print(f"Current seed: {self.current_seed}")
-            self.game.show_score()
-            self.game.show_cards()
-            print("Game stagnated. Terminating episode.")
+            if deal:
+                if not self.game.check_available_moves():
+                    if self.game.next_cards.cards:
+                        if self.no_moves.count(self.game.next_cards.cards[-1]) > 2:
+                            terminated = True
+                            end_message = "No more moves available. Cards remain in deck."
+                    else:
+                        if not self.game.deck.cards and not self.game.waste.cards:
+                            terminated = True
+                            end_message = "No more moves available. Deck and waste are empty."
+                    self.no_moves.append(self.game.next_cards.cards[-1])
+                else: 
+                    self.no_moves = []
+        else:
+            self.no_moves = []
 
         # Get the observation and additional info
         observation = self.get_observation()
@@ -134,7 +150,18 @@ class SolitaireEnv(gymnasium.Env):
         self.total_episodes_count += 1
 
         self.log_action([self.total_episodes_count, self.current_episode, self.current_step, action,
-                        source_idx, dest_idx, num_cards, reward, terminated, self.model_stats.get('exploration_rate', 0)])
+                        source_idx, dest_idx, num_cards, reward, terminated, self.model_stats.get('exploration_rate', 0), messages])
+
+        
+        if self.game.complete:
+            terminated = True
+            end_message = "Game complete.  You win!"
+
+        if terminated:
+            print(f"Current seed: {self.current_seed}")
+            self.game.show_score()
+            self.game.show_cards()
+            print(end_message)
 
         return observation, reward, terminated, truncated, info
 
@@ -192,6 +219,10 @@ class SolitaireEnv(gymnasium.Env):
         #    destination_stack = 1
         #    num_cards = 1
         # else:
+        if action == self.action_space.n - 1:
+            source_stack = 9
+            destination_stack = 1
+            num_cards = 1
         source_stack = action // (num_destinations * self.max_cards_per_move)
         action %= (num_destinations * self.max_cards_per_move)
         destination_stack = action // self.max_cards_per_move
