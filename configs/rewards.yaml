@@ -74,5 +74,5 @@ successful_tableau_transfer_king:
   - "Valid move from one empty stack to another."
 # Complete
 game_complete: 
-  - 50000
+  - 150000
   - "Congratulations! You have completed the game."

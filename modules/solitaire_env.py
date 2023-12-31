@@ -36,7 +36,7 @@ class SolitaireEnv(gymnasium.Env):
         with open(self.action_log_file, 'w', newline='') as file:
             writer = csv.writer(file)
             writer.writerow(['total_episode_count', 'episode', 'step', 'action', 'source_stack',
-                            'destination_stack', 'num_cards', 'reward', 'terminated', 'exploration_rate', 'return_message'])
+                            'destination_stack', 'num_cards', 'reward', 'terminated', 'exploration_rate', 'return_message', 'move_count', 'games_completed'])
 
         self.num_source_stacks = 9
         self.num_destinations = 8  # 7 tableau stacks, 1 foundation stack
@@ -158,13 +158,15 @@ class SolitaireEnv(gymnasium.Env):
         self.total_episodes_count += 1
 
         self.log_action([self.total_episodes_count, self.current_episode, self.current_step, action,
-                        source_idx, dest_idx, num_cards, reward, terminated, self.model_stats.get('exploration_rate', 0), messages])
+                        source_idx, dest_idx, num_cards, reward, terminated, self.model_stats.get('exploration_rate', 0), messages, self.move_count, self.games_completed])
 
         
         if self.game.complete:
             terminated = True
             self.games_completed += 1
-            end_message = "Game complete.  You win!"
+            end_message = "game_complete"
+            reward += self.game.reward_points(end_message)
+            
 
         if terminated:
             print(f"Current seed: {self.current_seed}")
