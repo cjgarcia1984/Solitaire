@@ -7,7 +7,7 @@ class Card(object):
         self.number = number
         self.color = "red" if suit in ["Hearts", "Diamonds"] else "black"
         self.visible = False
-        self.king_on_bottom = False
+
 
     def __repr__(self):
         color_code = "\033[91m" if self.color == "red" else ""

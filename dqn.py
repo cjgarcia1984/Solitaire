@@ -29,8 +29,8 @@ def train_dqn_agent():
     vec_env = DummyVecEnv(env_fns)  # or SubprocVecEnv(env_fns) for multiprocessing
 
     # Initialize the agent with the vectorized environment
-    model = DQN(MlpPolicy, vec_env, verbose=1,
-                learning_rate=0.0001,
+    model = DQN(MlpPolicy, vec_env, verbose=2,
+                learning_rate=0.001,
                 batch_size=16,
                 learning_starts=50000,
                 buffer_size=5000000,
@@ -66,5 +66,9 @@ def test_dqn_agent(model):
 
 
 if __name__ == "__main__":
+    # Train the agent
     model = train_dqn_agent()
+    # Save the agent
+    model.save("/home/chris/Solitaire/models/dqn_solitaire")
+    # Test the agent
     test_dqn_agent(model)

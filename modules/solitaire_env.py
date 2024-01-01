@@ -4,7 +4,9 @@ from modules.solitaire import Solitaire
 import numpy as np
 import random
 import csv
-
+import pandas as pd
+import os
+import time
 
 def sequential_num_generator(start=1, end=None):
     i = start
@@ -31,13 +33,17 @@ class SolitaireEnv(gymnasium.Env):
         # Initialize the Solitaire game
         self.config = config
         self.game = Solitaire(config=config)
-        self.action_log_file = self.config.get("env").get(
-            'action_log_file', 'action_log.csv')
-        with open(self.action_log_file, 'w', newline='') as file:
-            writer = csv.writer(file)
-            writer.writerow(['total_episode_count', 'episode', 'step', 'action', 'source_stack',
-                            'destination_stack', 'num_cards', 'reward', 'terminated', 'exploration_rate', 'return_message', 'move_count', 'games_completed', 'env_instance'])
 
+        self.log_cols = ['episode', 'step', 'action', 'source_stack',
+                         'destination_stack', 'num_cards', 'reward', 'terminated', 'exploration_rate', 'return_message', 'move_count', 'games_completed', 'env_instance']
+        self.action_log = []
+        # clear log dir
+        if not os.path.exists('logs'):
+            os.makedirs('logs')
+        else:
+            for file in os.listdir('logs'):
+                os.remove(f"logs/{file}")
+    
         self.num_source_stacks = 12
         self.num_destinations = 11  # 7 tableau stacks, 1 foundation stack
         # Maximum number of cards that can be moved at once
@@ -46,12 +52,18 @@ class SolitaireEnv(gymnasium.Env):
         # 9 source stacks, 8 destination stacks, 1 card
         self.action_space = spaces.Discrete(
             self.num_source_stacks * self.num_destinations * self.max_cards_per_move + 1)
-        self.action_repeat_threshold = 2
+
 
         # Number of steps with no progress to consider stagnation
 
         self.steps_since_progress = 0
 
+        # clear log dir
+        if not os.path.exists('logs'):
+            os.makedirs('logs')
+        else:
+            for file in os.listdir('logs'):
+                os.remove(f"logs/{file}")
         # Define observation space (using a simple representation for now)
         # For a more complex representation, you might need a multi-dimensional Box or a Dict space
         self.max_cards_per_stack = 24  # or any number that suits your game
@@ -66,13 +78,14 @@ class SolitaireEnv(gymnasium.Env):
         }
 
         self.current_episode = 0
-        self.total_episodes_count = 0
         self.current_step = 0
         self.move_count = 0
         self.model_stats = {}
         self.no_moves = []
         self.games_completed = 0
         self.env_instance = config.get('env_instance', None)
+        
+        self.time = time.time()
 
     def reset(self, seed=2, return_info=False, options=None):
         self.steps_since_progress = 0
@@ -88,7 +101,7 @@ class SolitaireEnv(gymnasium.Env):
         info = {}  # You can add additional reset info if needed
         self.current_episode += 1
         self.current_step = 0
-        
+
         self.move_count = 0
 
         # Make sure to return a tuple of (observation, info)
@@ -126,7 +139,6 @@ class SolitaireEnv(gymnasium.Env):
         else:
             self.steps_since_progress += 1
 
-        
         # Check for game stagnation
         terminated = self.game.complete
 
@@ -136,7 +148,8 @@ class SolitaireEnv(gymnasium.Env):
                 if not moves:
                     if not self.game.check_available_moves():
                         if self.game.next_cards.cards:
-                            self.no_moves.append(self.game.next_cards.cards[-1])
+                            self.no_moves.append(
+                                self.game.next_cards.cards[-1])
                             if self.no_moves.count(self.game.next_cards.cards[-1]) > 2:
                                 terminated = True
                                 end_message = "No more moves available. Cards remain in deck."
@@ -144,7 +157,7 @@ class SolitaireEnv(gymnasium.Env):
                             if not self.game.deck.cards and not self.game.waste.cards:
                                 terminated = True
                                 end_message = "No more moves available. Deck and waste are empty."
-                            
+
                     else:
                         moves = True
                         self.no_moves = []
@@ -156,18 +169,15 @@ class SolitaireEnv(gymnasium.Env):
         truncated = False
         info = {}
         self.current_step += 1
-        self.total_episodes_count += 1
 
-        self.log_action([self.total_episodes_count, self.current_episode, self.current_step, action,
+        self.log_action([self.current_episode, self.current_step, action,
                         source_idx, dest_idx, num_cards, reward, terminated, self.model_stats.get('exploration_rate', 0), messages, self.move_count, self.games_completed, self.env_instance])
 
-        
         if self.game.complete:
             terminated = True
             self.games_completed += 1
             end_message = ["game_complete"]
             reward += self.game.reward_points(end_message)
-            
 
         if terminated:
             print(f"Current seed: {self.current_seed}")
@@ -175,12 +185,15 @@ class SolitaireEnv(gymnasium.Env):
             self.game.show_cards()
             print(end_message)
 
+        if self.current_step % self.config['env'].get("save_every") == 0:
+            # time elapsed
+            elapsed = time.time() - self.time
+            self.save_log()
+            print(f"Time elapsed for env {self.env_instance} to reach step {self.current_step}: {int(elapsed)} seconds ({int(self.current_step / elapsed)} steps per second)")
+            self.game.show_cards()
+
         return observation, reward, terminated, truncated, info
 
-    def log_action(self, log_data):
-        with open(self.action_log_file, 'a', newline='') as file:
-            writer = csv.writer(file)
-            writer.writerow(log_data)
 
     def render(self, mode='human'):
         if mode == 'human' or mode == 'ansi':
@@ -241,3 +254,18 @@ class SolitaireEnv(gymnasium.Env):
 
     def set_exploration_rate(self, rate):
         self.exploration_rate = rate
+
+    def log_action(self, log_data):
+        # Convert log_data to a dictionary and append it to the action_log DataFrame
+
+        log_row = [log_data[i] for i in range(len(log_data))]
+
+        self.action_log.append(log_row)
+
+
+    def save_log(self):
+        # Save the action log to a CSV file
+        log_df = pd.DataFrame(self.action_log, columns=self.log_cols)
+        log_df.to_csv(f"{self.config['env'].get('log_path')}/{self.env_instance}_{log_df.loc[0,'step']}_{log_df['step'].max()}.csv", index=False)
+        self.action_log = []
+

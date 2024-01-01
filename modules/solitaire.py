@@ -72,9 +72,6 @@ class Solitaire(object):
         """
         Display the current state of the game, including the Next Cards, Foundation Stacks, and Tableau Stacks.
         """
-        if not self.next_cards.cards and not self.deck.cards:
-            "No cards left in deck. Deal again to reset deck."
-            return
         print('=' * 60)
 
         # Display current score
@@ -201,8 +198,9 @@ class Solitaire(object):
                 return False, messages
             # Turn over the next card in the tableau stack if applicable
             if source.type == "Tableau Stack" and source.cards:
-                source.cards[-1].visible = True
-                messages.append("reveal_hidden_card")
+                if not source.cards[-1].visible:
+                    source.cards[-1].visible = True
+                    messages.append("reveal_hidden_card")
             return result, messages
         else:
             messages.append("no_cards_to_move")
@@ -250,22 +248,21 @@ class Solitaire(object):
                 source, dest, num_cards)
             messages.append(message)
             return result, messages
-
-        if dest.type == "Foundation":
+        
+        elif dest.type == "Foundation":
             if num_cards > 1:
                 messages.append("invalid_foundation_move_number")
                 return False, messages
             else:
-                result, message = self.is_valid_foundation_move(cards[0], dest.suit)
+                result, message = self.is_valid_foundation_move(cards[0], dest.suit, source.type)
                 messages.append(message)
                 return result, messages
         elif dest.type == "Tableau Stack":
-            result, message = self.is_valid_tableau_move(dest, cards)
+            result, message = self.is_valid_tableau_move(dest, source, cards)
             messages.append(message)
             if not result:
                 return False, messages
             else:
-                messages.append("successful_tableau_move")
                 return True, messages
         else:
             messages.append("invalid_destination")
@@ -291,9 +288,8 @@ class Solitaire(object):
         top_foundation_card = source_foundation.get_top_card()
 
         if dest_tableau.is_empty():
-            # In some versions of Solitaire, only Kings can be moved to empty tableau stacks
             if top_foundation_card.number == 13:
-                return True, "successful_tableau_move_king"
+                return True, "valid_foundation_to_tableau_move"
             else:
                 return False, "invalid_tableau_move_king"
 
@@ -309,11 +305,13 @@ class Solitaire(object):
 
         return True, "valid_foundation_to_tableau_move"
 
-    def is_valid_foundation_move(self, card, dest_suit):
+    def is_valid_foundation_move(self, card, dest_suit, source_type):
         """
         Validate a move to the foundation based on the game rules.
         Updated to return specific dictionary keys.
         """
+        if source_type == "Foundation":
+            return False, "invalid_foundation_move_foundation"
         if card.suit != dest_suit:
             return False, "invalid_foundation_move_suit"
         if card.number == 1:
@@ -326,7 +324,7 @@ class Solitaire(object):
         else:
             return False, "invalid_foundation_move_ace"
 
-    def is_valid_tableau_move(self, dest_stack, cards):
+    def is_valid_tableau_move(self, dest_stack, source_stack, cards):
         """
         Validate a move to a tableau stack based on the game rules.
         Updated to return specific dictionary keys.
@@ -334,7 +332,7 @@ class Solitaire(object):
         top_card = cards[0]
         if dest_stack.is_empty():
             if top_card.number == 13:
-                if top_card.king_on_bottom == False:
+                if source_stack.cards != cards and source_stack.type != "Next Cards":
                     return True, "successful_tableau_move_king"
                 else:
                     return True, "successful_tableau_transfer_king"
@@ -672,13 +670,13 @@ class Solitaire(object):
 
                     # Check for moves to the foundation
                     for idx, (suit, foundation_stack) in enumerate(self.foundation.items()):
-                        if num_cards == 1 and self.is_valid_foundation_move(cards[0], suit)[0]:
+                        if num_cards == 1 and self.is_valid_foundation_move(cards[0], suit, source_stack.type)[0]:
                             possible_moves.append(
                                 (f"{i+1}: [{cards_str}]", f"f{idx+1}", num_cards))
 
                     # Check for moves to other tableau stacks
                     for j, dest_stack in enumerate(self.t_stack):
-                        if i != j and self.is_valid_tableau_move(dest_stack, cards)[0]:
+                        if i != j and self.is_valid_tableau_move(dest_stack, source_stack, cards)[0]:
                             dest_card_str = str(dest_stack.get_top_card()) if dest_stack.cards else 'Empty'
                             possible_moves.append(
                                 (f"{i+1}: [{cards_str}]", f"{j+1}: {dest_card_str}", num_cards))
@@ -690,13 +688,13 @@ class Solitaire(object):
 
             # Check for moves to the foundation
             for idx, (suit, foundation_stack) in enumerate(self.foundation.items()):
-                if self.is_valid_foundation_move(next_card, suit)[0]:
+                if self.is_valid_foundation_move(next_card, suit, source_stack.type)[0]:
                     possible_moves.append(
                         (f"N: {next_card_str}", f"f{idx+1}", 1))
 
             # Check for moves to tableau stacks
             for i, dest_stack in enumerate(self.t_stack):
-                if self.is_valid_tableau_move(dest_stack, [next_card])[0]:
+                if self.is_valid_tableau_move(dest_stack, source_stack, [next_card])[0]:
                     dest_card_str = str(dest_stack.get_top_card()) if dest_stack.cards else 'Empty'
                     possible_moves.append(
                         (f"N: {next_card_str}", f"{i+1}: {dest_card_str}", 1))

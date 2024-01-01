@@ -4,9 +4,7 @@ show_messages: false
 
     
 env:
-  action_log_file: action_log.csv
-
-  max_global_history_length: 10 # Maximum number of actions to keep in the global history
-  action_repeat_threshold: 2 # Number of times an action must be repeated before it is considered a loop
+  log_path: logs/ # Path to save logs
+  save_every: 100000 # Save the game state every n actions
   stagnation_threshold: 1000 # Number of actions to take without making progress before the game is considered to be stuck
   
