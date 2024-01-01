@@ -2,6 +2,8 @@ from stable_baselines3 import DQN
 from stable_baselines3.dqn.policies import MlpPolicy
 from stable_baselines3.common.env_checker import check_env
 from stable_baselines3.common.evaluation import evaluate_policy
+from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
+
 # Replace with the path to your SolitaireEnv
 from modules.solitaire_env import SolitaireEnv
 from modules.callback import ModelDataCallback
@@ -13,10 +15,21 @@ env = SolitaireEnv(config=yaml.safe_load(
 # Check the environment (optional but recommended)
 check_env(env, warn=True)
 
+def make_env(config_path, instance):
+    def _init():
+        config = yaml.safe_load(open(config_path))
+        config['env_instance'] = instance
+        env = SolitaireEnv(config=config)
+        return env
+    return _init
 
 def train_dqn_agent():
-    # Initialize the agent
-    model = DQN(MlpPolicy, env, verbose=1,
+    num_envs = 4  # Number of parallel environments
+    env_fns = [make_env("/home/chris/Solitaire/configs/config.yaml", i) for i in range(num_envs)]
+    vec_env = DummyVecEnv(env_fns)  # or SubprocVecEnv(env_fns) for multiprocessing
+
+    # Initialize the agent with the vectorized environment
+    model = DQN(MlpPolicy, vec_env, verbose=1,
                 learning_rate=0.0001,
                 batch_size=16,
                 learning_starts=50000,
@@ -31,7 +44,7 @@ def train_dqn_agent():
 
     # Train the agent
     print("Training the DQN agent...")
-    model.learn(total_timesteps=10000000, callback=callback)
+    model.learn(total_timesteps=50000000, callback=callback)
     print("Training completed!")
 
     return model
