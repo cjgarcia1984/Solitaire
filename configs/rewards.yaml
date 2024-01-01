@@ -35,6 +35,9 @@ cards_movable:
   - 5
   - "Invalid move: Cards in the source stack are movable."
 # Foundation
+invalid_foundation_move_suit: 
+  - -10
+  - "Invalid move: Correct card number but suit must match the top card of the foundation stack."
 invalid_foundation_move_number: 
   - -10
   - "Invalid move: Correct suit but card number must be one more than the top card of the foundation stack."
@@ -42,14 +45,17 @@ invalid_foundation_move_ace:
   - -15
   - "Invalid move: Only aces can be moved to an empty foundation stack."
 successful_foundation_move: 
-  - 2500
+  - 5000
   - "Valid move to foundation."
 ace_to_foundation: 
-  - 2500
+  - 5000
   - "Valid move to empty foundation."
+valid_foundation_to_tableau_move: 
+  - -5000
+  - "Valid move from foundation to tableau."
 # Tableau
 reveal_hidden_card: 
-  - 1000
+  - 5000
   - "Turning over card."
 invalid_tableau_move_color: 
   - -1
@@ -67,7 +73,7 @@ successful_tableau_move:
   - 100
   - "Valid move to tableau stack."
 successful_tableau_move_king:
-  - 1000
+  - 5000
   - "Valid move to empty tableau stack."
 successful_tableau_transfer_king:
   - 0

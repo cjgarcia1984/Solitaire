@@ -36,10 +36,10 @@ class SolitaireEnv(gymnasium.Env):
         with open(self.action_log_file, 'w', newline='') as file:
             writer = csv.writer(file)
             writer.writerow(['total_episode_count', 'episode', 'step', 'action', 'source_stack',
-                            'destination_stack', 'num_cards', 'reward', 'terminated', 'exploration_rate', 'return_message', 'move_count', 'games_completed'])
+                            'destination_stack', 'num_cards', 'reward', 'terminated', 'exploration_rate', 'return_message', 'move_count', 'games_completed', 'env_instance'])
 
-        self.num_source_stacks = 9
-        self.num_destinations = 8  # 7 tableau stacks, 1 foundation stack
+        self.num_source_stacks = 12
+        self.num_destinations = 11  # 7 tableau stacks, 1 foundation stack
         # Maximum number of cards that can be moved at once
         self.max_cards_per_move = NUM_RANKS
         # Define action space (source_stack, destination_stack, num_cards)
@@ -72,6 +72,7 @@ class SolitaireEnv(gymnasium.Env):
         self.model_stats = {}
         self.no_moves = []
         self.games_completed = 0
+        self.env_instance = config.get('env_instance', None)
 
     def reset(self, seed=2, return_info=False, options=None):
         self.steps_since_progress = 0
@@ -104,7 +105,7 @@ class SolitaireEnv(gymnasium.Env):
 
         # Execute the action
 
-        if source_idx == 9:  # Deal next cards action
+        if source_idx == 12:  # Deal next cards action
             messages = self.game.deal_next_cards()
             self.steps_since_progress += 1
             deal = True
@@ -134,8 +135,8 @@ class SolitaireEnv(gymnasium.Env):
             if deal:
                 if not moves:
                     if not self.game.check_available_moves():
-                        moves = False
                         if self.game.next_cards.cards:
+                            self.no_moves.append(self.game.next_cards.cards[-1])
                             if self.no_moves.count(self.game.next_cards.cards[-1]) > 2:
                                 terminated = True
                                 end_message = "No more moves available. Cards remain in deck."
@@ -143,7 +144,7 @@ class SolitaireEnv(gymnasium.Env):
                             if not self.game.deck.cards and not self.game.waste.cards:
                                 terminated = True
                                 end_message = "No more moves available. Deck and waste are empty."
-                        self.no_moves.append(self.game.next_cards.cards[-1])
+                            
                     else:
                         moves = True
                         self.no_moves = []
@@ -158,13 +159,13 @@ class SolitaireEnv(gymnasium.Env):
         self.total_episodes_count += 1
 
         self.log_action([self.total_episodes_count, self.current_episode, self.current_step, action,
-                        source_idx, dest_idx, num_cards, reward, terminated, self.model_stats.get('exploration_rate', 0), messages, self.move_count, self.games_completed])
+                        source_idx, dest_idx, num_cards, reward, terminated, self.model_stats.get('exploration_rate', 0), messages, self.move_count, self.games_completed, self.env_instance])
 
         
         if self.game.complete:
             terminated = True
             self.games_completed += 1
-            end_message = "game_complete"
+            end_message = ["game_complete"]
             reward += self.game.reward_points(end_message)
             
 
@@ -192,10 +193,12 @@ class SolitaireEnv(gymnasium.Env):
         # Map index to the corresponding stack in the game
         if idx < 7:
             return str(idx+1)  # Tableau stacks 0-6
-        elif idx == 7:
-            return 'f'  # Foundation stacks 0-3
-        elif idx == 8:
+        elif 6 < idx < 11:
+            return f"f{idx+1-7}"  # Foundation stacks 0-3
+        elif idx == 11:
             return 'n'  # Next cards stack
+        else:
+            raise ValueError(f"Invalid stack index: {idx}")
 
     def get_observation(self):
         # Initialize the observation array
@@ -223,15 +226,9 @@ class SolitaireEnv(gymnasium.Env):
         return card_number
 
     def decode_action(self, action):
-        num_destinations = 8
-
-        # if action == self.action_space.n - 1:
-        #    source_stack = 9
-        #    destination_stack = 1
-        #    num_cards = 1
-        # else:
+        num_destinations = 11
         if action == self.action_space.n - 1:
-            source_stack = 9
+            source_stack = 12
             destination_stack = 1
             num_cards = 1
         source_stack = action // (num_destinations * self.max_cards_per_move)

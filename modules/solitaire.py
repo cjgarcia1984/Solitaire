@@ -21,7 +21,7 @@ class Solitaire(object):
             self.config = config
         self.history = []
         self.num_t_stack = 7
-        self.foundation = {n: Stack(stack_type=f"Foundation") for n in [
+        self.foundation = {s: Stack(stack_type=f"Foundation", suit=s) for s in [
             "Spades", "Hearts", "Clubs", "Diamonds"]}
         self.t_stack = [Stack(stack_type="Tableau Stack")
                         for _ in range(self.num_t_stack)]
@@ -77,6 +77,9 @@ class Solitaire(object):
             return
         print('=' * 60)
 
+        # Display current score
+        self.show_score()
+
         # Display Next Cards
         self.display_next_cards()
 
@@ -131,9 +134,13 @@ class Solitaire(object):
         Display the cards in each of the foundation stacks.
         """
         print("Foundation:")
-        for n, s in self.foundation.items():
-            top_card = str(s.get_top_card()) if s.cards else "[]"
-            print(f"{n}: {top_card}", end='  ')
+        # Ensure consistent ordering of suits
+        foundation_keys = list(self.foundation.keys())
+        for idx, suit in enumerate(foundation_keys):
+            top_card = str(self.foundation[suit].get_top_card(
+            )) if self.foundation[suit].cards else "[]"
+            # Display stack number in parentheses before the suit
+            print(f"({idx + 1}){suit}: {top_card}", end='  ')
         print('\n' + '-' * 60)
 
     def deal_next_cards(self):
@@ -168,7 +175,6 @@ class Solitaire(object):
                 card = self.deck.cards.pop(0)
                 card.set_visible(True)
                 self.next_cards.cards.append(card)
-                # self.show_cards()
             messages.append("dealing_next_cards")
         else:
             messages.append("no_cards_to_deal")
@@ -239,12 +245,18 @@ class Solitaire(object):
         else:
             messages.append("cards_movable")
 
+        if source.type == "Foundation" and dest.type == "Tableau Stack":
+            result, message = self.is_valid_foundation_to_tableau_move(
+                source, dest, num_cards)
+            messages.append(message)
+            return result, messages
+
         if dest.type == "Foundation":
             if num_cards > 1:
                 messages.append("invalid_foundation_move_number")
                 return False, messages
             else:
-                result, message = self.is_valid_foundation_move(cards[0])
+                result, message = self.is_valid_foundation_move(cards[0], dest.suit)
                 messages.append(message)
                 return result, messages
         elif dest.type == "Tableau Stack":
@@ -259,14 +271,51 @@ class Solitaire(object):
             messages.append("invalid_destination")
             return False, messages
 
-    def get_foundation_stack(self, card):
-        return self.foundation[card.suit]
+    def is_valid_foundation_to_tableau_move(self, source_foundation, dest_tableau, num_cards):
+        """
+        Validate a move from a foundation stack to a tableau stack.
 
-    def is_valid_foundation_move(self, card):
+        Args:
+            source_foundation (Stack): The foundation stack from which the card is being moved.
+            dest_tableau (Stack): The tableau stack to which the card is being moved.
+
+        Returns:
+            bool: True if the move is valid, False otherwise.
+        """
+        if num_cards > 1:
+            return False, "invalid_foundation_move_number"
+
+        if source_foundation.is_empty():
+            return False, "empty_foundation_stack"  # Can't move from an empty foundation
+
+        top_foundation_card = source_foundation.get_top_card()
+
+        if dest_tableau.is_empty():
+            # In some versions of Solitaire, only Kings can be moved to empty tableau stacks
+            if top_foundation_card.number == 13:
+                return True, "successful_tableau_move_king"
+            else:
+                return False, "invalid_tableau_move_king"
+
+        top_tableau_card = dest_tableau.get_top_card()
+
+        # Check for alternating colors
+        if top_foundation_card.color == top_tableau_card.color:
+            return False, "invalid_foundation_move_suit"
+
+        # Check for descending order
+        if top_foundation_card.number != top_tableau_card.number - 1:
+            return False, "invalid_foundation_move_number"
+
+        return True, "valid_foundation_to_tableau_move"
+
+    def is_valid_foundation_move(self, card, dest_suit):
         """
         Validate a move to the foundation based on the game rules.
         Updated to return specific dictionary keys.
         """
+        if card.suit != dest_suit:
+            return False, "invalid_foundation_move_suit"
         if card.number == 1:
             return True, "ace_to_foundation"
         elif self.foundation[card.suit].cards:
@@ -415,13 +464,20 @@ class Solitaire(object):
         elif user_input == 'q':
             print("Game ended.")
             exit()
-        elif len(user_input) in [1, 2]:
+        elif len(user_input) in [1, 2, 3]:
             parts = list(user_input)
             if len(parts) == 1:
                 source = parts[0]
                 dest = 'f'
             if len(parts) == 2:
                 source, dest = parts
+            if len(parts) == 3:
+                if parts[0] == 'f':
+                    dest = parts[2]
+                    source = "".join(parts[:2])
+                elif parts[1] == 'f':
+                    dest = "".join(parts[1:])
+                    source = parts[0]
             result, messages = self.execute_move(source, dest)
             points = self.reward_points(messages)
 
@@ -447,7 +503,15 @@ class Solitaire(object):
     def parse_source_stack(self, source):
         if source == 'n':
             source_stack = self.next_cards
-        # Adjust for 1-based index
+        # New code to handle foundation stacks
+        elif source.startswith('f') and len(source) == 2 and source[1].isdigit():
+            foundation_index = int(source[1]) - 1  # Convert to 0-based index
+            if 0 <= foundation_index < 4:
+                source_stack = self.foundation[list(self.foundation.keys())[foundation_index]]
+            else:
+                print(
+                    "Invalid foundation stack. Please enter a valid stack (f1, f2, f3, f4).")
+                return None
         elif source.isdigit():
             source_index = int(source) - 1  # Convert to 0-based index
             if source_index < 0 or source_index >= self.num_t_stack:
@@ -459,13 +523,16 @@ class Solitaire(object):
             return None
         return source_stack
 
-    def parse_destination_stack(self, dest, source):
-        if dest == 'f':
-            cards_to_move = self.get_cards_to_move(source, 1)
-            if cards_to_move:
-                dest_stack = self.get_foundation_stack(cards_to_move[0])
+    def parse_destination_stack(self, dest):
+        if dest.startswith('f') and len(dest) == 2 and dest[1].isdigit():
+            foundation_index = int(dest[1]) - 1  # Convert to 0-based index
+            foundation_keys = list(self.foundation.keys())
+            if 0 <= foundation_index < len(foundation_keys):
+                dest_stack = self.foundation[foundation_keys[foundation_index]]
             else:
-                dest_stack = None
+                print(
+                    "Invalid foundation stack. Please enter a valid stack (f1, f2, f3, f4).")
+                return None
 
         elif dest.isdigit():
             dest = int(dest) - 1  # Convert to 0-based index
@@ -482,7 +549,7 @@ class Solitaire(object):
         messages = []
         source = self.parse_source_stack(source)
         if source is not None:
-            dest = self.parse_destination_stack(dest, source)
+            dest = self.parse_destination_stack(dest)
             if dest is not None:
                 messages.append("valid_source_and_valid_destination")
                 if num_cards is None:
@@ -601,28 +668,20 @@ class Solitaire(object):
             for num_cards in range(1, len(source_stack.cards) + 1):
                 cards = source_stack.cards[-num_cards:]
                 if all(card.visible for card in cards):  # Only consider visible cards
-                    # Format each card for color
                     cards_str = ', '.join([str(card) for card in cards])
 
                     # Check for moves to the foundation
-                    for suit, foundation_stack in self.foundation.items():
-                        if num_cards == 1 and self.is_valid_foundation_move(cards[0])[0] and cards[0].suit == suit:
+                    for idx, (suit, foundation_stack) in enumerate(self.foundation.items()):
+                        if num_cards == 1 and self.is_valid_foundation_move(cards[0], suit)[0]:
                             possible_moves.append(
-                                (f"{i+1}: [{cards_str}]", "Foundation", num_cards))
+                                (f"{i+1}: [{cards_str}]", f"f{idx+1}", num_cards))
 
                     # Check for moves to other tableau stacks
                     for j, dest_stack in enumerate(self.t_stack):
                         if i != j and self.is_valid_tableau_move(dest_stack, cards)[0]:
-                            reveal_hidden = len(
-                                source_stack.cards) > num_cards and not source_stack.cards[-num_cards - 1].visible
-                            empty_tableau = (len(source_stack.cards) == num_cards) and (
-                                cards[0].number != 13)
-                            if reveal_hidden or empty_tableau:
-                                dest_card_str = str(
-                                    dest_stack.cards[-1]) if dest_stack.cards else 'Empty'
-                                move_description = (
-                                    f"{i+1}: [{cards_str}]", f"{j+1}: {dest_card_str}", num_cards)
-                                possible_moves.append(move_description)
+                            dest_card_str = str(dest_stack.get_top_card()) if dest_stack.cards else 'Empty'
+                            possible_moves.append(
+                                (f"{i+1}: [{cards_str}]", f"{j+1}: {dest_card_str}", num_cards))
 
         # Check for moves from next cards to tableau or foundation
         if self.next_cards.cards:
@@ -630,17 +689,30 @@ class Solitaire(object):
             next_card_str = str(next_card)
 
             # Check for moves to the foundation
-            for suit, foundation_stack in self.foundation.items():
-                if self.is_valid_foundation_move(next_card)[0] and next_card.suit == suit:
+            for idx, (suit, foundation_stack) in enumerate(self.foundation.items()):
+                if self.is_valid_foundation_move(next_card, suit)[0]:
                     possible_moves.append(
-                        (f"N: {next_card_str}", "Foundation", 1))
+                        (f"N: {next_card_str}", f"f{idx+1}", 1))
 
             # Check for moves to tableau stacks
             for i, dest_stack in enumerate(self.t_stack):
                 if self.is_valid_tableau_move(dest_stack, [next_card])[0]:
-                    dest_card_str = str(
-                        dest_stack.cards[-1]) if dest_stack.cards else 'Empty'
+                    dest_card_str = str(dest_stack.get_top_card()) if dest_stack.cards else 'Empty'
                     possible_moves.append(
                         (f"N: {next_card_str}", f"{i+1}: {dest_card_str}", 1))
 
+        # Check for moves from foundation to tableau
+        #for idx, (suit, source_foundation) in enumerate(self.foundation.items()):
+        #    if source_foundation.cards:
+        #        top_foundation_card = source_foundation.get_top_card()
+        #        foundation_card_str = str(top_foundation_card)
+        #
+        #        # Check for moves to tableau stacks
+        #        for i, dest_stack in enumerate(self.t_stack):
+        #            if self.is_valid_foundation_to_tableau_move(source_foundation, dest_stack, 1)[0]:
+        #                dest_card_str = str(dest_stack.get_top_card()) if dest_stack.cards else 'Empty'
+        #                possible_moves.append(
+        #                    (f"f{idx+1}: {foundation_card_str}", f"{i+1}: {dest_card_str}", 1))
+
         return possible_moves
+

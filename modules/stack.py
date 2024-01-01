@@ -1,7 +1,8 @@
 class Stack(object):
-    def __init__(self, cards=None, stack_type=None):
+    def __init__(self, cards=None, stack_type=None, suit=None):
         self.cards = cards if cards else []
         self.type = stack_type
+        self.suit = suit
 
     def add_card(self, card):
         self.cards.append(card)
