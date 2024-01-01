@@ -1,4 +1,4 @@
-cards_per_turn: 3
+cards_per_turn: 1
 random_seed: 5
 show_messages: false
 
@@ -8,5 +8,5 @@ env:
 
   max_global_history_length: 10 # Maximum number of actions to keep in the global history
   action_repeat_threshold: 2 # Number of times an action must be repeated before it is considered a loop
-  stagnation_threshold: 10 # Number of actions to take without making progress before the game is considered to be stuck
+  stagnation_threshold: 1000 # Number of actions to take without making progress before the game is considered to be stuck
   
