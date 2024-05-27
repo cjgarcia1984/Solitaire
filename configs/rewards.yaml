@@ -29,7 +29,7 @@ valid_source_and_valid_destination:
   - 1
   - "Valid source and destination."
 cards_not_movable: 
-  - -20
+  - -5
   - "Invalid move: Cards in the source stack are not movable."
 cards_movable:
   - 1
