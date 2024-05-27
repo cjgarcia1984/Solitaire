@@ -2,7 +2,8 @@ from stable_baselines3 import PPO
 from stable_baselines3.common.env_checker import check_env
 from stable_baselines3.common.evaluation import evaluate_policy
 
-from modules.solitaire_env import SolitaireEnv  # Replace with the actual path to your SolitaireEnv
+from modules.solitaire_env import SolitaireEnv
+
 
 def train_agent():
     # Create the environment
@@ -23,6 +24,7 @@ def train_agent():
     model.save("ppo_solitaire")
 
     return model
+
 
 def test_agent(model):
     # Create the environment
