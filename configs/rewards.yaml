@@ -14,16 +14,16 @@ no_cards_to_deal:
   - "No cards to deal."
 # Moves
 requested_too_many_cards:
-  - -10
+  - -5
   - "Invalid move: Requested too many cards."
 requested_valid_number_of_cards:
   - 1
   - "Valid move: Requested valid number of cards."
 invalid_source: 
-  - -20
+  - -10
   - "Invalid move: Source stack is invalid."
 valid_source_invalid_destination: 
-  - -10
+  - -5
   - "Invalid move: Source stack is valid but destination stack is invalid."
 valid_source_and_valid_destination: 
   - 1
@@ -83,5 +83,5 @@ successful_tableau_transfer_king:
   - "Valid move from one empty stack to another."
 # Complete
 game_complete: 
-  - 150000
+  - 200000
   - "Congratulations! You have completed the game."

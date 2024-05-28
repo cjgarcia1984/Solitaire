@@ -1,10 +1,10 @@
-cards_per_turn: 1
+cards_per_turn: 3
 random_seed: 5
 show_messages: false
 
     
 env:
-  log_path: logs/ # Path to save logs
+  log_path: /mnt/c/logs # Path to save logs
   save_every: 100000 # Save the game state every n actions
   stagnation_threshold: 1000 # Number of actions to take without making progress before the game is considered to be stuck
   
