@@ -21,9 +21,9 @@ env = SolitaireEnv(
 check_env(env, warn=True)
 
 
-def make_env(config_path, instance):
+def make_env(config, instance):
     def _init():
-        config = yaml.safe_load(open(config_path))
+
         config["env_instance"] = instance
         env = SolitaireEnv(config=config)
         # Wrap the environment with the Monitor wrapper
@@ -35,24 +35,26 @@ def make_env(config_path, instance):
 
 def train_dqn_agent():
     num_envs = 4  # Number of parallel environments
+    config = yaml.safe_load(open("/home/chris/Solitaire/configs/config.yaml"))
     env_fns = [
-        make_env("/home/chris/Solitaire/configs/config.yaml", i)
+        make_env(config, i)
         for i in range(num_envs)
     ]
-    vec_env = DummyVecEnv(env_fns)  # or SubprocVecEnv(env_fns) for multiprocessing
+    # or SubprocVecEnv(env_fns) for multiprocessing
+    vec_env = DummyVecEnv(env_fns)
 
     # Initialize the agent with the vectorized environment
     model = DQN(
         MlpPolicy,
         vec_env,
         verbose=2,
-        learning_rate=0.001,
-        batch_size=16,
-        learning_starts=50000,
-        buffer_size=5000000,
-        exploration_fraction=0.90,
-        exploration_final_eps=0.01,
-        target_update_interval=1000,
+        learning_rate=config["dqn"].get("learning_rate", 0.001),
+        batch_size=config["dqn"].get("batch_size", 32),
+        learning_starts=config["dqn"].get("learning_starts", 1000),
+        buffer_size=config["dqn"].get("buffer_size", 10000),
+        exploration_fraction=config["dqn"].get("exploration_fraction", 0.1),
+        exploration_final_eps=config["dqn"].get("exploration_final_eps", 0.02),
+        target_update_interval=config["dqn"].get("target_update_interval", 500),
     )
 
     # Create the callback and pass the model to it
@@ -60,7 +62,7 @@ def train_dqn_agent():
 
     # Train the agent
     print("Training the DQN agent...")
-    model.learn(total_timesteps=500000, callback=callback)
+    model.learn(total_timesteps=config["dqn"].get("total_timesteps", 50000), callback=callback)
     print("Training completed!")
 
     return model
