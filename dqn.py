@@ -36,10 +36,7 @@ def make_env(config, instance):
 def train_dqn_agent():
     num_envs = 4  # Number of parallel environments
     config = yaml.safe_load(open("/home/chris/Solitaire/configs/config.yaml"))
-    env_fns = [
-        make_env(config, i)
-        for i in range(num_envs)
-    ]
+    env_fns = [make_env(config, i) for i in range(num_envs)]
     # or SubprocVecEnv(env_fns) for multiprocessing
     vec_env = DummyVecEnv(env_fns)
 
@@ -62,7 +59,9 @@ def train_dqn_agent():
 
     # Train the agent
     print("Training the DQN agent...")
-    model.learn(total_timesteps=config["dqn"].get("total_timesteps", 50000), callback=callback)
+    model.learn(
+        total_timesteps=config["dqn"].get("total_timesteps", 50000), callback=callback
+    )
     print("Training completed!")
 
     return model

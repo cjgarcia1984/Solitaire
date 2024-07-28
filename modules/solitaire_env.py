@@ -90,8 +90,7 @@ class SolitaireEnv(gymnasium.Env):
         self.current_episode = 0
         self.current_step = 0
         self.move_count = 0
-        self.model_stats = {}
-        self.no_moves = []
+
         self.games_completed = 0
         self.env_instance = config.get("env_instance", None)
 
@@ -106,7 +105,6 @@ class SolitaireEnv(gymnasium.Env):
         config.update({"random_seed": seed})
         self.game = Solitaire(config)
         print("New game started.")
-        self.no_moves = []
         observation = self.get_observation()
         info = {}  # You can add additional reset info if needed
         self.current_episode += 1
@@ -130,7 +128,7 @@ class SolitaireEnv(gymnasium.Env):
 
         if source_idx == 12:  # Deal next cards action
             messages = self.game.deal_next_cards()
-            # self.steps_since_progress += 1
+            self.steps_since_progress += 1
             deal = True
             move_result = False
         else:
@@ -156,17 +154,12 @@ class SolitaireEnv(gymnasium.Env):
         if self.steps_since_progress >= self.config.get("env").get(
             "stagnation_threshold", 1000
         ):
-            moves = False
-            if deal:
-                if not moves:
-                    if not self.game.check_available_moves():
-                        terminated = True
-                        end_message = "No more moves available."
-                    else:
-                        moves = True
-                        self.no_moves = []
-        else:
-            self.no_moves = []
+            if self.steps_since_progress >= self.config.get("env").get(
+                "max_steps", 100000
+            ):
+                if not self.game.check_available_moves():
+                    terminated = True
+                    end_message = "No more moves available."
 
         # Get the observation and additional info
         observation = self.get_observation()
@@ -216,9 +209,9 @@ class SolitaireEnv(gymnasium.Env):
                 self.env_instance,
             ]
         )
-        
+
         return observation, reward, terminated, truncated, info
-    
+
     def adjust_reward(self, reward):
         if reward > 0:
             reward *= 1 + self.game.get_foundation_count() / 52
