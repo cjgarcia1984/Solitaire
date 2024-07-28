@@ -1,12 +1,17 @@
 dqn:
-  total_timesteps: 50000
-  learning_rate: 0.001
-  learning_starts: 10000
-  batch_size: 32
-  buffer_size: 10000
-  exploration_fraction: 0.1
-  exploration_final_eps: 0.02
-  target_update_interval: 1000
+  train:
+    total_timesteps: 110000
+  model:
+    learning_rate: 0.001
+    learning_starts: 10000
+    batch_size: 32
+    buffer_size: 10000
+    exploration_fraction: 0.1
+    exploration_final_eps: 0.02
+    target_update_interval: 1000
+  test:
+    episodes: 10
+    steps: 110000
 
 cards_per_turn: 3
 random_seed: 5
@@ -14,6 +19,7 @@ show_messages: false
 
     
 env:
+  num: 4
   log_path: /mnt/c/logs # Path to save logs
   save_every: 100000 # Save the game state every n actions
   stagnation_threshold: 1000 # Number of actions to take without making progress before the game checks for available moves

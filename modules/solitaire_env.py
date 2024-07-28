@@ -90,7 +90,7 @@ class SolitaireEnv(gymnasium.Env):
         self.current_episode = 0
         self.current_step = 0
         self.move_count = 0
-
+        self.model_stats = {}
         self.games_completed = 0
         self.env_instance = config.get("env_instance", None)
 
@@ -148,9 +148,6 @@ class SolitaireEnv(gymnasium.Env):
         else:
             self.steps_since_progress += 1
 
-        # Check for game stagnation
-        terminated = self.game.complete
-
         if self.steps_since_progress >= self.config.get("env").get(
             "stagnation_threshold", 1000
         ):
@@ -168,12 +165,11 @@ class SolitaireEnv(gymnasium.Env):
         self.current_step += 1
 
         if self.game.complete:
-            terminated = True
             self.games_completed += 1
             end_message = ["game_complete"]
             reward += self.game.reward_points(end_message)
 
-        if terminated:
+        if self.game.complete:
             print(f"Current seed: {self.current_seed}")
             self.game.show_score()
             self.game.show_cards()
@@ -201,7 +197,7 @@ class SolitaireEnv(gymnasium.Env):
                 num_cards,
                 unadjusted_reward,
                 reward,
-                terminated,
+                self.game.complete,
                 self.model_stats.get("exploration_rate", 0),
                 messages,
                 self.move_count,
@@ -209,9 +205,9 @@ class SolitaireEnv(gymnasium.Env):
                 self.env_instance,
             ]
         )
-
-        return observation, reward, terminated, truncated, info
-
+        
+        return observation, reward, self.game.complete, truncated, info
+    
     def adjust_reward(self, reward):
         if reward > 0:
             reward *= 1 + self.game.get_foundation_count() / 52
