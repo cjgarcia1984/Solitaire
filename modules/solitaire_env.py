@@ -109,10 +109,7 @@ class SolitaireEnv(gymnasium.Env):
         info = {}  # You can add additional reset info if needed
         self.current_episode += 1
         self.current_step = 0
-
         self.move_count = 0
-
-        # Make sure to return a tuple of (observation, info)
         return observation, info
 
     def step(self, action):
@@ -148,19 +145,21 @@ class SolitaireEnv(gymnasium.Env):
         else:
             self.steps_since_progress += 1
 
+        terminated = False
         if self.steps_since_progress >= self.config.get("env").get(
             "stagnation_threshold", 1000
         ):
             if self.steps_since_progress >= self.config.get("env").get(
                 "max_steps", 100000
             ):
-                if not self.game.check_available_moves():
+                    terminated = True
+                    end_message = "Exceeded max steps."
+            if not self.game.check_available_moves():
                     terminated = True
                     end_message = "No more moves available."
 
         # Get the observation and additional info
         observation = self.get_observation()
-        truncated = False
         info = {}
         self.current_step += 1
 
@@ -169,7 +168,7 @@ class SolitaireEnv(gymnasium.Env):
             end_message = ["game_complete"]
             reward += self.game.reward_points(end_message)
 
-        if self.game.complete:
+        if terminated:
             print(f"Current seed: {self.current_seed}")
             self.game.show_score()
             self.game.show_cards()
@@ -197,8 +196,8 @@ class SolitaireEnv(gymnasium.Env):
                 num_cards,
                 unadjusted_reward,
                 reward,
-                self.game.complete,
-                self.model_stats.get("exploration_rate", 0),
+                terminated,
+                self.unwrapped.model_stats.get("exploration_rate", 0),
                 messages,
                 self.move_count,
                 self.games_completed,
@@ -206,7 +205,7 @@ class SolitaireEnv(gymnasium.Env):
             ]
         )
         
-        return observation, reward, self.game.complete, truncated, info
+        return observation, reward, self.game.complete, terminated, info
     
     def adjust_reward(self, reward):
         if reward > 0:

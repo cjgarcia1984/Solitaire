@@ -10,18 +10,19 @@ dqn:
     exploration_final_eps: 0.02
     target_update_interval: 1000
   test:
-    episodes: 10
+    episodes: 4
     steps: 110000
 
+debug: true
 cards_per_turn: 3
 random_seed: 5
 show_messages: false
 
     
 env:
-  num: 4
+  num: 2
   log_path: /mnt/c/logs # Path to save logs
   save_every: 100000 # Save the game state every n actions
-  stagnation_threshold: 1000 # Number of actions to take without making progress before the game checks for available moves
-  max_steps: 200000 # Maximum number of steps to take before the game is considered to be stuck
+  stagnation_threshold: 10000 # Number of actions to take without making progress before the game checks for available moves
+  max_steps: 20000 # Maximum number of steps to take before the game is considered to be stuck
   

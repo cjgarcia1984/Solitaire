@@ -4,7 +4,7 @@ from stable_baselines3 import DQN
 from stable_baselines3.dqn.policies import MlpPolicy
 from stable_baselines3.common.env_checker import check_env
 from stable_baselines3.common.evaluation import evaluate_policy
-from stable_baselines3.common.vec_env import DummyVecEnv
+from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
 from stable_baselines3.common.monitor import Monitor
 
 from modules.solitaire_env import SolitaireEnv
@@ -26,7 +26,11 @@ def make_env(config, instance=None):
 def create_vector_env(config, num_envs):
     """ Create a vectorized environment for parallel training. """
     env_fns = [lambda i=i: make_env(config, instance=i) for i in range(num_envs)]
-    return DummyVecEnv(env_fns)  # Replace with SubprocVecEnv for multiprocessing
+    if config.get("debug"):
+        envs = DummyVecEnv(env_fns)  # Replace with SubprocVecEnv for multiprocessing
+    else:
+        envs = SubprocVecEnv(env_fns)
+    return envs
 
 def make_env(config, instance=None):
     """ Environment factory that creates and wraps the environment with a Monitor. """
@@ -36,11 +40,6 @@ def make_env(config, instance=None):
         env = Monitor(env, log_path)
     return env
 
-def create_vector_env(config, num_envs):
-    """ Create a vectorized environment for parallel training. """
-    env_fns = [lambda i=i: make_env(config, instance=i) for i in range(num_envs)]
-    return DummyVecEnv(env_fns)  # Replace with SubprocVecEnv for multiprocessing
-
 def train_dqn_agent(vec_env, config):
     """ Train a DQN agent on the vectorized environment. """
     model = DQN(
@@ -49,7 +48,7 @@ def train_dqn_agent(vec_env, config):
         verbose=2,
         **config['dqn']['model']  # Unpacking model-specific configuration
     )
-    callback = ModelDataCallback(model=model)
+    callback = ModelDataCallback(model=model, debug=config.get("debug"))
     print("Training the DQN agent...")
     model.learn(total_timesteps=config['dqn']['train']['total_timesteps'], callback=callback)
     print("Training completed!")
@@ -59,14 +58,14 @@ def test_dqn_agent(model, env, config):
     """ Evaluate and test the trained agent. """
     mean_reward, std_reward = evaluate_policy(model, env, n_eval_episodes=config["dqn"]['test'].get("episodes", 10))
     print(f"Mean reward: {mean_reward}, std: {std_reward}")
-
-    obs = env.reset()
-    for _ in range(config["dqn"]['test'].get("steps", 10000)):
+    obs, info = env.reset()
+    for step in range(config["dqn"]['test'].get("steps", 10000)):
         action, _ = model.predict(obs, deterministic=True)
         obs, rewards, terminated, truncated, info = env.step(action)
-        env.render()
-        if terminated:
-            obs = env.reset()
+        if step%1000 == 0:
+            env.render()
+        if terminated or truncated:
+            obs, _ = env.reset()
 
 if __name__ == "__main__":
     config = load_config("/home/chris/Solitaire/configs/config.yaml")
