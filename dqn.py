@@ -34,7 +34,7 @@ def create_vector_env(config, num_envs):
 
 def make_env(config, instance=None):
     """ Environment factory that creates and wraps the environment with a Monitor. """
-    env = SolitaireEnv(config=config)
+    env = SolitaireEnv(config=config, instance=instance)
     if instance is not None:
         log_path = os.path.join("/home/chris/Solitaire/logs", f"env_{instance}")
         env = Monitor(env, log_path)
@@ -50,7 +50,7 @@ def train_dqn_agent(vec_env, config):
     )
     callback = ModelDataCallback(model=model, debug=config.get("debug"))
     print("Training the DQN agent...")
-    model.learn(total_timesteps=config['dqn']['train']['total_timesteps'], callback=callback)
+    model.learn(total_timesteps=config['dqn']['train']['total_timesteps']*vec_env.num_envs, callback=callback)
     print("Training completed!")
     return model
 
@@ -68,6 +68,11 @@ def test_dqn_agent(model, env, config):
 
 if __name__ == "__main__":
     config = load_config("/home/chris/Solitaire/configs/config.yaml")
+
+    if config.get("clear_logs", False):
+        for file in os.listdir(config.get("log_path")):
+            os.remove(f"{config.get('log_path')}/{file}")
+
     train_env = create_vector_env(config, num_envs=config['env'].get("num", 4))
     model = train_dqn_agent(train_env, config)
 

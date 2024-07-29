@@ -29,7 +29,7 @@ number_gen = sequential_num_generator(start=1, end=None)
 class SolitaireEnv(gymnasium.Env):
     metadata = {"render.modes": ["human", "ansi"]}
 
-    def __init__(self, config=None):
+    def __init__(self, config=None, instance=None):
         super(SolitaireEnv, self).__init__()
         # Initialize the Solitaire game
         self.config = config
@@ -64,17 +64,9 @@ class SolitaireEnv(gymnasium.Env):
         )
 
         # Number of steps with no progress to consider stagnation
-
         self.steps_since_progress = 0
 
-        # clear log dir
-
-        self.log_path = self.config["env"].get("log_path")
-        if not os.path.exists(self.log_path):
-            os.makedirs(self.log_path)
-        else:
-            for file in os.listdir(self.log_path):
-                os.remove(f"{self.log_path}/{file}")
+        self.log_path = self.config.get("log_path")
 
         # Define observation space (using a simple representation for now)
         # For a more complex representation, you might need a multi-dimensional Box or a Dict space
@@ -92,7 +84,7 @@ class SolitaireEnv(gymnasium.Env):
         self.move_count = 0
         self.model_stats = {}
         self.games_completed = 0
-        self.env_instance = config.get("env_instance", None)
+        self.env_instance = instance
 
         self.time = time.time()
 
@@ -286,8 +278,10 @@ class SolitaireEnv(gymnasium.Env):
     def save_log(self):
         # Save the action log to a CSV file
         log_df = pd.DataFrame(self.action_log, columns=self.log_cols)
+        full_log_path = f"{self.log_path}/{self.env_instance}_{log_df.loc[0,'step']}_{log_df['step'].max()}.csv"
+        os.makedirs(self.log_path,exist_ok=True)
         log_df.to_csv(
-            f"{self.log_path}/{self.env_instance}_{log_df.loc[0,'step']}_{log_df['step'].max()}.csv",
+            full_log_path,
             index=False,
         )
         self.action_log = []
