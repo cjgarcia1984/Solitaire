@@ -11,7 +11,7 @@ dqn:
     target_update_interval: 1000
   test:
     episodes: 4
-    steps: 110000
+    steps: 11000
 
 debug: true
 cards_per_turn: 3

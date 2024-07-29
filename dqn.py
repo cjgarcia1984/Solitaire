@@ -62,9 +62,8 @@ def test_dqn_agent(model, env, config):
     for step in range(config["dqn"]['test'].get("steps", 10000)):
         action, _ = model.predict(obs, deterministic=True)
         obs, rewards, terminated, truncated, info = env.step(action)
-        if step%1000 == 0:
-            env.render()
         if terminated or truncated:
+            env.render()
             obs, _ = env.reset()
 
 if __name__ == "__main__":
