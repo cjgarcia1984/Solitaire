@@ -275,3 +275,20 @@ def open_csv_chunks(path, **kwargs):
     df_iter = pd.read_csv(path, low_memory=False, chunksize=1000, **kwargs)
     df = pd.concat(df_iter)
     return df
+
+def exploration_rate(current_step, initial_rate=1.0, final_rate=0.1, decay_steps=10000):
+    """
+    Compute the exploration rate (epsilon) for epsilon-greedy strategy.
+
+    Args:
+    current_step (int): The current training step.
+    initial_rate (float): The initial exploration rate at the beginning of training.
+    final_rate (float): The minimum exploration rate at the end of training.
+    decay_steps (int): The number of steps over which the exploration rate decays.
+
+    Returns:
+    float: The exploration rate for the current step.
+    """
+    # Ensure the decay is within the decay steps
+    rate = initial_rate - (initial_rate - final_rate) * min(current_step, decay_steps) / decay_steps
+    return max(final_rate, rate)
