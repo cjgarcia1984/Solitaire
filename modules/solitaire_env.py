@@ -34,23 +34,6 @@ class SolitaireEnv(gymnasium.Env):
         # Initialize the Solitaire game
         self.config = config
         self.game = Solitaire(config=config)
-
-        self.log_cols = [
-            "episode",
-            "step",
-            "action",
-            "source_stack",
-            "destination_stack",
-            "num_cards",
-            "unadjusted_reward",
-            "reward",
-            "terminated",
-            "exploration_rate",
-            "return_message",
-            "move_count",
-            "games_completed",
-            "env_instance",
-        ]
         self.action_log = []
 
         self.num_source_stacks = 12
@@ -142,7 +125,7 @@ class SolitaireEnv(gymnasium.Env):
             "stagnation_threshold", 1000
         ):
             if self.steps_since_progress >= self.config.get("env").get(
-                "max_steps", 100000
+                "max_steps_per_game", 100000
             ):
                     terminated = True
                     end_message = "Exceeded max steps."
@@ -167,7 +150,6 @@ class SolitaireEnv(gymnasium.Env):
             print(end_message)
 
         if self.current_step % self.config["env"].get("save_every") == 0:
-            # time elapsed
             elapsed = time.time() - self.time
             self.save_log()
             print(
@@ -179,22 +161,22 @@ class SolitaireEnv(gymnasium.Env):
         reward = self.adjust_reward(reward)
 
         self.log_action(
-            [
-                self.current_episode,
-                self.current_step,
-                action,
-                source_idx,
-                dest_idx,
-                num_cards,
-                unadjusted_reward,
-                reward,
-                terminated,
-                self.unwrapped.model_stats.get("exploration_rate", 0),
-                messages,
-                self.move_count,
-                self.games_completed,
-                self.env_instance,
-            ]
+            {
+                "episode": self.current_episode,
+                "step": self.current_step,
+                "action": action,
+                "source_stack": source_idx,
+                "destination_stack": dest_idx,
+                "num_cards": num_cards,
+                "unadjusted_reward": unadjusted_reward,
+                "reward": reward,
+                "terminated": terminated,
+                "exploration_rate": self.unwrapped.model_stats.get("exploration_rate", 0),
+                "return_message": messages,
+                "move_count": self.move_count,
+                "games_completed": self.games_completed,
+                "env_instance": self.env_instance,
+            }
         )
         
         return observation, reward, self.game.complete, terminated, info
@@ -268,16 +250,12 @@ class SolitaireEnv(gymnasium.Env):
     def set_exploration_rate(self, rate):
         self.exploration_rate = rate
 
-    def log_action(self, log_data):
-        # Convert log_data to a dictionary and append it to the action_log DataFrame
-
-        log_row = [log_data[i] for i in range(len(log_data))]
-
+    def log_action(self, log_row):
         self.action_log.append(log_row)
 
     def save_log(self):
         # Save the action log to a CSV file
-        log_df = pd.DataFrame(self.action_log, columns=self.log_cols)
+        log_df = pd.DataFrame(self.action_log)
         full_log_path = f"{self.log_path}/{self.env_instance}_{log_df.loc[0,'step']}_{log_df['step'].max()}.csv"
         os.makedirs(self.log_path,exist_ok=True)
         log_df.to_csv(

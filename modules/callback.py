@@ -9,6 +9,4 @@ class ModelDataCallback(BaseCallback):
     def _on_step(self) -> bool:
         if self.debug:
             self.training_env.envs[0].unwrapped.model_stats['exploration_rate'] = self.model.exploration_rate
-        else:
-            self.training_env.unwrapped.model_stats['exploration_rate'] = self.model.exploration_rate
         return True

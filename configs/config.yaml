@@ -3,8 +3,8 @@ dqn:
     total_timesteps: 11000000
   model:
     learning_rate: 0.0001
-    learning_starts: 10000
-    batch_size: 32
+    learning_starts: 100000
+    batch_size: 64
     buffer_size: 10000
     exploration_fraction: 0.1
     exploration_final_eps: 0.02
@@ -13,7 +13,7 @@ dqn:
     episodes: 4
     steps: 11000
 
-debug: true
+debug: false
 cards_per_turn: 3
 random_seed: 5
 show_messages: false
@@ -21,8 +21,7 @@ log_path: /mnt/c/logs
 clear_logs: true
 
 env:
-  num: 2
-  
+  num: 4
   save_every: 100000 # Save the game state every n actions
   stagnation_threshold: 10000 # Number of actions to take without making progress before the game checks for available moves
-  max_steps: 100000 # Maximum number of steps to take before the game is considered to be stuck
+  max_steps_per_game: 100000 # Maximum number of steps to take before the game is considered to be stuck
