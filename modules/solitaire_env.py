@@ -1,6 +1,8 @@
 import gymnasium
 from gymnasium import spaces
 from modules.solitaire import Solitaire
+from utils.general import exploration_rate
+
 import numpy as np
 import random
 import csv
