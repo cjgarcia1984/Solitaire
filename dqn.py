@@ -21,6 +21,7 @@ def make_env(config, instance=None):
     if instance is not None:
         log_path = os.path.join("/home/chris/Solitaire/logs", f"env_{instance}")
         env = Monitor(env, log_path)
+    check_env(env)
     return env
 
 def create_vector_env(config, num_envs):
@@ -48,9 +49,9 @@ def train_dqn_agent(vec_env, config):
         verbose=2,
         **config['dqn']['model']  # Unpacking model-specific configuration
     )
-    callback = ModelDataCallback(model=model, debug=config.get("debug"))
+    #callback = ModelDataCallback(model=model, debug=config.get("debug"))
     print("Training the DQN agent...")
-    model.learn(total_timesteps=config['dqn']['train']['total_timesteps']*vec_env.num_envs, callback=callback)
+    model.learn(total_timesteps=config['dqn']['train']['total_timesteps']*vec_env.num_envs)
     print("Training completed!")
     return model
 
