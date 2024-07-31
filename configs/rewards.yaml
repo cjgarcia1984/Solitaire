@@ -1,38 +1,38 @@
 
 # Deck
 dealing_next_cards: 
-  - -2
+  - -5
   - "Dealing next cards."
 recycling_waste_pile:
-  - -5
+  - -10
   - "Recycling waste pile."
 recycle_waste_pile_and_used_cards:
-  - 5
+  - 50
   - "Recycling waste pile and used cards."
 no_cards_to_deal: 
-  - -1
+  - -2
   - "No cards to deal."
 # Moves
 requested_too_many_cards:
   - -2
   - "Invalid move: Requested too many cards."
 requested_valid_number_of_cards:
-  - 1
+  - 5
   - "Valid move: Requested valid number of cards."
 invalid_source: 
-  - -10
+  - -2
   - "Invalid move: Source stack is invalid."
 valid_source_invalid_destination: 
-  - -2
+  - -1
   - "Invalid move: Source stack is valid but destination stack is invalid."
 valid_source_and_valid_destination: 
-  - 1
+  - 2
   - "Valid source and destination."
 cards_not_movable: 
   - -2
   - "Invalid move: Cards in the source stack are not movable."
 cards_movable:
-  - 1
+  - 4
   - "Invalid move: Cards in the source stack are movable."
 # Foundation
 invalid_foundation_move_suit: 
@@ -48,23 +48,23 @@ invalid_foundation_move_foundation:
   - -2
   - "Invalid move: Cannot move foundation to foundation."
 successful_foundation_move: 
-  - 10000
+  - 100
   - "Valid move to foundation."
 ace_to_foundation: 
-  - 10000
+  - 100
   - "Valid move to empty foundation."
 valid_foundation_to_tableau_move: 
-  - -10000
+  - -100
   - "Valid move from foundation to tableau."
 # Tableau
 reveal_hidden_card: 
-  - 1000
+  - 50
   - "Turning over card."
 invalid_tableau_move_color: 
-  - -1
+  - -2
   - "Invalid move: Correct number but card color must be opposite of the top card of the tableau stack."
 invalid_tableau_move_number:
-  - -1
+  - -2
   - "Invalid move: Correct color but card number must be one less than the top card of the tableau stack."
 invalid_tableau_move_color_number:
   - -2
@@ -76,12 +76,12 @@ successful_tableau_move:
   - 0
   - "Valid move to tableau stack."
 successful_tableau_move_king:
-  - 1000
+  - 50
   - "Valid move to empty tableau stack."
 successful_tableau_transfer_king:
   - 0
   - "Valid move from one empty stack to another."
 # Complete
 game_complete: 
-  - 200000
+  - 2000
   - "Congratulations! You have completed the game."

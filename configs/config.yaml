@@ -1,9 +1,9 @@
 dqn:
   train:
-    total_timesteps: 11000000
+    total_timesteps: 20000000
   model:
-    learning_rate: 0.0001
-    learning_starts: 100000
+    learning_rate: 0.00001
+    learning_starts: 1000000
     batch_size: 64
     buffer_size: 10000
     exploration_fraction: 0.75
@@ -23,5 +23,5 @@ clear_logs: true
 env:
   num: 1
   save_every: 100000 # Save the game state every n actions
-  stagnation_threshold: 10000 # Number of actions to take without making progress before the game checks for available moves
+  stagnation_threshold: 20000 # Number of actions to take without making progress before the game checks for available moves
   max_steps_per_game: 100000 # Maximum number of steps to take before the game is considered to be stuck

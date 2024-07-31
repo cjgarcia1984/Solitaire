@@ -133,10 +133,8 @@ class SolitaireEnv(gymnasium.Env):
         if source_idx == 12:  # Deal next cards action
             messages = self.game.deal_next_cards()
             self.steps_since_progress += 1
-            deal = True
             move_result = False
         else:
-            deal = False
             source_stack = self.get_stack(source_idx)
             dest_stack = self.get_stack(dest_idx)
             move_result, messages = self.game.execute_move(
@@ -156,14 +154,15 @@ class SolitaireEnv(gymnasium.Env):
         if self.steps_since_progress >= self.config.get("env").get(
             "stagnation_threshold", 1000
         ):
-            if self.steps_since_progress >= self.config.get("env").get(
-                "max_steps_per_game", 100000
-            ):
-                terminated = True
-                end_message = "Exceeded max steps."
             if not self.game.check_available_moves():
                 terminated = True
                 end_message = "No more moves available."
+
+        if self.current_step >= self.config.get("env").get(
+            "max_steps_per_game", 100000
+        ):
+            terminated = True
+            end_message = "Exceeded max steps."
 
         # Get the observation and additional info
         observation = self.get_observation()
