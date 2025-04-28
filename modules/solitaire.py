@@ -349,10 +349,12 @@ class Solitaire(object):
         top_card = cards[0]
         if dest_stack.is_empty():
             if top_card.number == 13:
-                if source_stack.cards != cards and source_stack.type != "Next Cards":
-                    return True, "successful_tableau_move_king"
+                if source_stack.cards != cards:
+                    return True, "successful_tableau_move_king_to_empty"
+                elif source_stack.type == "Next Cards":
+                    return True, "successful_next_cards_transfer_king"
                 else:
-                    return True, "successful_tableau_transfer_king"
+                    return True, "successful_move_king_around"
             else:
                 return False, "invalid_tableau_move_king"
         else:

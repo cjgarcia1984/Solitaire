@@ -1,7 +1,7 @@
 
 # Deck
 dealing_next_cards: 
-  - -5
+  - -50
   - "Dealing next cards."
 recycling_waste_pile:
   - -10
@@ -32,7 +32,7 @@ cards_not_movable:
   - -2
   - "Invalid move: Cards in the source stack are not movable."
 cards_movable:
-  - 4
+  - 5
   - "Invalid move: Cards in the source stack are movable."
 # Foundation
 invalid_foundation_move_suit: 
@@ -54,7 +54,7 @@ ace_to_foundation:
   - 100
   - "Valid move to empty foundation."
 valid_foundation_to_tableau_move: 
-  - -100
+  - -50
   - "Valid move from foundation to tableau."
 # Tableau
 reveal_hidden_card: 
@@ -73,15 +73,18 @@ invalid_tableau_move_king:
   - -2
   - "Invalid move: Only kings can be moved to an empty tableau stack."
 successful_tableau_move: 
-  - 0
-  - "Valid move to tableau stack."
-successful_tableau_move_king:
   - 50
+  - "Valid move to tableau stack."
+successful_tableau_move_king_to_empty:
+  - 100
   - "Valid move to empty tableau stack."
-successful_tableau_transfer_king:
+successful_move_king_around:
   - 0
   - "Valid move from one empty stack to another."
+successful_next_cards_transfer_king:
+  - 50
+  - "Valid move from next cards to empty tableau stack."
 # Complete
 game_complete: 
-  - 2000
+  - 5000
   - "Congratulations! You have completed the game."

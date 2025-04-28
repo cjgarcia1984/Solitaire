@@ -102,7 +102,7 @@ class SolitaireEnv(gymnasium.Env):
 
         self.time = time.time()
 
-    def reset(self, seed=2, return_info=False, options=None):
+    def reset(self, seed=2, options=None):
         self.steps_since_progress = 0
         seed = next(number_gen)
         self.current_seed = seed
@@ -127,6 +127,7 @@ class SolitaireEnv(gymnasium.Env):
 
         # Initialize reward
         reward = 0
+        end_message = ""
 
         # Execute the action
 
@@ -151,6 +152,7 @@ class SolitaireEnv(gymnasium.Env):
             self.steps_since_progress += 1
 
         terminated = False
+        truncated = False
         if self.steps_since_progress >= self.config.get("env").get(
             "stagnation_threshold", 1000
         ):
@@ -161,7 +163,7 @@ class SolitaireEnv(gymnasium.Env):
         if self.current_step >= self.config.get("env").get(
             "max_steps_per_game", 100000
         ):
-            terminated = True
+            truncated = True
             end_message = "Exceeded max steps."
 
         # Get the observation and additional info
@@ -174,6 +176,7 @@ class SolitaireEnv(gymnasium.Env):
             self.games_completed += 1
             end_message = ["game_complete"]
             reward += self.game.reward_points(end_message)
+            terminated = True
 
         if terminated:
             print(f"Current seed: {self.current_seed}")
@@ -222,7 +225,7 @@ class SolitaireEnv(gymnasium.Env):
             }
         )
 
-        return observation, reward, self.game.complete, terminated, info
+        return observation, reward, terminated, truncated, info
 
     def adjust_reward(self, reward):
         if reward > 0:
@@ -278,16 +281,13 @@ class SolitaireEnv(gymnasium.Env):
 
     def decode_action(self, action):
         num_destinations = 11
-        if action == self.action_space.n - 1:
-            source_stack = 12
-            destination_stack = 1
-            num_cards = 1
+        DEAL_ACTION = self.action_space.n - 1
+        if action == DEAL_ACTION:
+            return 12, 1, 1  # Explicit immediate return for special action
         source_stack = action // (num_destinations * self.max_cards_per_move)
         action %= num_destinations * self.max_cards_per_move
         destination_stack = action // self.max_cards_per_move
-        # Adding 1 because num_cards is 1-indexed
         num_cards = action % self.max_cards_per_move + 1
-
         return source_stack, destination_stack, num_cards
 
     def log_action(self, log_row):
