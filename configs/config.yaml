@@ -4,18 +4,20 @@ dqn:
     log_interval: 1
   model:
     learning_rate: 0.00001
-    learning_starts: 50000
-    batch_size: 1024
+    learning_starts: 100000
+    batch_size: 128
     buffer_size: 2000000
-    exploration_fraction: 0.1
+    exploration_fraction: 0.5
     exploration_final_eps: 0.05
     target_update_interval: 1000
+    policy_kwargs:
+      net_arch: [256, 256]
   test:
     episodes: 4
     steps: 11000
   save_interval: 500000
 debug: false
-cards_per_turn: 3
+cards_per_turn: 1
 random_seed: 5
 show_messages: false
 log_path: /mnt/c/solitaire_logs

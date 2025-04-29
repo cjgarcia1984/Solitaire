@@ -1,1 +1,1 @@
-tensorboard --logdir=/mnt/c/solitaire_logs/tb_logs --bind_all
+tensorboard --logdir=/mnt/c/solitaire_logs/tb_logs --host 0.0.0.0 --port 6006
