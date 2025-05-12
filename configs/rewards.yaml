@@ -10,42 +10,42 @@ recycle_waste_pile_and_used_cards:
   - 50
   - "Recycling waste pile and used cards."
 no_cards_to_deal: 
-  - -2
+  - -5
   - "No cards to deal."
 # Moves
 requested_too_many_cards:
-  - -2
+  - -5
   - "Invalid move: Requested too many cards."
 requested_valid_number_of_cards:
   - 5
   - "Valid move: Requested valid number of cards."
 invalid_source: 
-  - -2
+  - -5
   - "Invalid move: Source stack is invalid."
 valid_source_invalid_destination: 
   - -1
   - "Invalid move: Source stack is valid but destination stack is invalid."
 valid_source_and_valid_destination: 
-  - 2
+  - 0
   - "Valid source and destination."
 cards_not_movable: 
-  - -2
+  - -5
   - "Invalid move: Cards in the source stack are not movable."
 cards_movable:
   - 5
   - "Invalid move: Cards in the source stack are movable."
 # Foundation
 invalid_foundation_move_suit: 
-  - -2
+  - -7
   - "Invalid move: Correct card number but suit must match the top card of the foundation stack."
 invalid_foundation_move_number: 
-  - -2
+  - -7
   - "Invalid move: Correct suit but card number must be one more than the top card of the foundation stack."
 invalid_foundation_move_ace: 
-  - -2
+  - -10
   - "Invalid move: Only aces can be moved to an empty foundation stack."
 invalid_foundation_move_foundation: 
-  - -2
+  - -10
   - "Invalid move: Cannot move foundation to foundation."
 successful_foundation_move: 
   - 200
@@ -54,37 +54,37 @@ ace_to_foundation:
   - 200
   - "Valid move to empty foundation."
 valid_foundation_to_tableau_move: 
-  - -50
+  - -200
   - "Valid move from foundation to tableau."
 # Tableau
 reveal_hidden_card: 
-  - 100
+  - 200
   - "Turning over card."
 invalid_tableau_move_color: 
-  - -2
+  - -5
   - "Invalid move: Correct number but card color must be opposite of the top card of the tableau stack."
 invalid_tableau_move_number:
-  - -2
+  - -8
   - "Invalid move: Correct color but card number must be one less than the top card of the tableau stack."
 invalid_tableau_move_color_number:
-  - -2
+  - -10
   - "Invalid move: Card color and number must be opposite and one less than the top card of the tableau stack."
 invalid_tableau_move_king: 
-  - -2
+  - -5
   - "Invalid move: Only kings can be moved to an empty tableau stack."
 successful_tableau_move: 
-  - 100
+  - 200
   - "Valid move to tableau stack."
 successful_tableau_move_king_to_empty:
-  - 150
+  - 200
   - "Valid move to empty tableau stack."
 successful_move_king_around:
   - 0
   - "Valid move from one empty stack to another."
 successful_next_cards_transfer_king:
-  - 50
+  - 200
   - "Valid move from next cards to empty tableau stack."
 # Complete
 game_complete: 
-  - 5000
+  - 20000
   - "Congratulations! You have completed the game."

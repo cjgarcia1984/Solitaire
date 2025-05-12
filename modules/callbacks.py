@@ -39,3 +39,28 @@ class CheckpointCallback(BaseCallback):
                 print(f"Checkpoint saved to {checkpoint_file}")
 
         return True
+    
+class InfoLoggerCallback(BaseCallback):
+    """
+    Logs environment info keys to TensorBoard.
+    """
+    def __init__(self, verbose=0):
+        super(InfoLoggerCallback, self).__init__(verbose)
+
+    def _on_step(self) -> bool:
+        infos = self.locals.get("infos", None)
+        if infos is not None and len(infos) > 0:
+            # Handle vectorized envs (multiple infos)
+            if isinstance(infos, (list, tuple)):
+                # Just take the first one (could also average if you prefer)
+                info = infos[0]
+            else:
+                info = infos
+
+            if "games_completed" in info:
+                self.logger.record("custom/games_completed", info["games_completed"])
+
+            if "move_count" in info:
+                self.logger.record("custom/move_count", info["move_count"])
+
+        return True

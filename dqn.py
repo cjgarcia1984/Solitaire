@@ -2,12 +2,13 @@ import os
 import yaml
 from stable_baselines3 import DQN
 from stable_baselines3.dqn.policies import MlpPolicy
+
 from stable_baselines3.common.env_checker import check_env
 from stable_baselines3.common.evaluation import evaluate_policy
 from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.logger import configure
-from modules.callbacks import GPUMemoryCallback, CheckpointCallback
+from modules.callbacks import GPUMemoryCallback, CheckpointCallback, InfoLoggerCallback
 
 from modules.solitaire_env import SolitaireEnv
 import shutil
@@ -44,13 +45,15 @@ def make_env(config, instance=None):
 def train_dqn_agent(vec_env, config):
     log_path = config.get("tb_log_path", "/home/chris/Solitaire/tb_logs")
     new_logger = configure(log_path, ["stdout", "tensorboard"])
-
+    model_config = config["dqn"]["model"]
+    if isinstance(model_config.get("train_freq"), list):
+        model_config["train_freq"] = tuple(model_config["train_freq"])
     model = DQN(
         policy=MlpPolicy,
         env=vec_env,
         verbose=3,
         tensorboard_log=log_path,
-        **config["dqn"]["model"],
+        **model_config,
     )
     model.set_logger(new_logger)
 
@@ -65,11 +68,13 @@ def train_dqn_agent(vec_env, config):
         save_path="/home/chris/Solitaire/checkpoints",
         verbose=2,
     )
+    
+    info_logger_callback = InfoLoggerCallback()
 
     # Combine callbacks
     from stable_baselines3.common.callbacks import CallbackList
 
-    callback_list = CallbackList([gpu_callback, checkpoint_callback])
+    callback_list = CallbackList([gpu_callback, checkpoint_callback, info_logger_callback])
 
     # Train with both callbacks
     model.learn(
