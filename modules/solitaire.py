@@ -20,13 +20,13 @@ class Solitaire(object):
         if config:
             self.config = config
         self.history = []
-        self.num_t_stack = 7
+        self.num_t_stacks = config.get("num_t_stacks",7)
         self.foundation = {
             s: Stack(stack_type=f"Foundation", suit=s)
             for s in ["Spades", "Hearts", "Clubs", "Diamonds"]
         }
         self.t_stack = [
-            Stack(stack_type="Tableau Stack") for _ in range(self.num_t_stack)
+            Stack(stack_type="Tableau Stack") for _ in range(self.num_t_stacks)
         ]
         self.waste = Stack(stack_type="Waste")
         self.next_cards = Stack(stack_type="Next Cards")
@@ -536,9 +536,9 @@ class Solitaire(object):
                 return None
         elif source.isdigit():
             source_index = int(source) - 1  # Convert to 0-based index
-            if source_index < 0 or source_index >= self.num_t_stack:
+            if source_index < 0 or source_index >= self.num_t_stacks + 4:
                 print(
-                    f"Invalid source. Please enter a number between 1 and {self.num_t_stack}."
+                    f"Invalid source. Please enter a number between 1 and {self.num_t_stacks}."
                 )
                 return None
             source_stack = self.t_stack[source_index]
@@ -560,9 +560,9 @@ class Solitaire(object):
 
         elif dest.isdigit():
             dest = int(dest) - 1  # Convert to 0-based index
-            if dest < 0 or dest >= self.num_t_stack:
+            if dest < 0 or dest >= self.num_t_stacks:
                 print(
-                    f"Invalid destination. Please enter a number between 1 and {self.num_t_stack}."
+                    f"Invalid destination. Please enter a number between 1 and {self.num_t_stacks}."
                 )
                 return None
             dest_stack = self.t_stack[dest]
@@ -747,19 +747,25 @@ class Solitaire(object):
 
                 # Check for moves to the foundation
                 for idx, (suit, foundation_stack) in enumerate(self.foundation.items()):
-                    if self.is_valid_foundation_move(next_card, suit, source_stack.type)[0]:
+                    if self.is_valid_foundation_move(
+                        next_card, suit, source_stack.type
+                    )[0]:
                         possible_moves.append((f"N: {next_card_str}", f"f{idx+1}", 1))
 
                 # Check for moves to tableau stacks
                 for i, dest_stack in enumerate(self.t_stack):
-                    if self.is_valid_tableau_move(dest_stack, source_stack, [next_card])[0]:
+                    if self.is_valid_tableau_move(
+                        dest_stack, source_stack, [next_card]
+                    )[0]:
                         dest_card_str = (
-                            str(dest_stack.get_top_card()) if dest_stack.cards else "Empty"
+                            str(dest_stack.get_top_card())
+                            if dest_stack.cards
+                            else "Empty"
                         )
                         possible_moves.append(
                             (f"N: {next_card_str}", f"{i+1}: {dest_card_str}", 1)
                         )
-        
+
         if not possible_moves:
             self.show_cards()
             print(possible_moves)
@@ -770,6 +776,8 @@ class Solitaire(object):
         if self.deck.cards:
             if self.deck.cards[-1] not in available_cards:
                 available_cards.append(self.deck.cards[-1])
-        
-        available_cards.extend((self.waste.cards + self.next_cards.cards + self.deck.cards)[2::3])
+
+        available_cards.extend(
+            (self.waste.cards + self.next_cards.cards + self.deck.cards)[2::3]
+        )
         return available_cards
