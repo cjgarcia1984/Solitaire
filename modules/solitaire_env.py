@@ -66,9 +66,8 @@ class SolitaireEnv(gymnasium.Env):
         self.config = config
         self.game = Solitaire(config=config)
         self.action_log = []
-
-        self.num_source_stacks = 12
-        self.num_destinations = 11  # 7 tableau stacks, 1 foundation stack
+        self.num_destinations = self.config.get("num_t_stacks", 7) + 4
+        self.num_source_stacks = self.num_destinations + 1
         # Maximum number of cards that can be moved at once
         self.max_cards_per_move = NUM_RANKS
         # Define action space (source_stack, destination_stack, num_cards)
@@ -131,7 +130,7 @@ class SolitaireEnv(gymnasium.Env):
 
         # Execute the action
 
-        if source_idx == 12:  # Deal next cards action
+        if source_idx == self.game.num_t_stacks + 4 + 1:  # Deal next cards action
             messages = self.game.deal_next_cards()
             self.steps_since_progress += 1
             move_result = False
@@ -156,9 +155,15 @@ class SolitaireEnv(gymnasium.Env):
         if self.steps_since_progress >= self.config.get("env").get(
             "stagnation_threshold", 1000
         ):
-            if not self.game.check_available_moves():
+            if self.config.get("check_available_moves", False):
+                if not self.game.check_available_moves():
+                    terminated = True
+                    end_message = "No more moves available."
+                else:
+                    self.steps_since_progress = 0
+            else:
                 terminated = True
-                end_message = "No more moves available."
+                end_message = "Stagnation threshold reached."
 
         if self.current_step >= self.config.get("env").get(
             "max_steps_per_game", 100000
@@ -168,7 +173,10 @@ class SolitaireEnv(gymnasium.Env):
 
         # Get the observation and additional info
         observation = self.get_observation()
-        info = {}
+        info = {
+            "games_completed": self.games_completed,
+            "move_count": self.move_count,
+        }
         self.current_step += 1
         SolitaireEnv.total_steps += 1
 
@@ -178,10 +186,10 @@ class SolitaireEnv(gymnasium.Env):
             reward += self.game.reward_points(end_message)
             terminated = True
 
-        if terminated:
+        if terminated or truncated:
             print(f"Current seed: {self.current_seed}")
             self.game.show_score()
-            self.game.show_cards()
+            #self.game.show_cards()
             print(end_message)
 
         if SolitaireEnv.total_steps % self.config["env"].get("save_every") == 0:
@@ -195,6 +203,7 @@ class SolitaireEnv(gymnasium.Env):
                 f"Env {self.env_instance} Total:  Step {SolitaireEnv.total_steps}, Time Elapsed: {int(total_elapsed)}s ({SolitaireEnv.total_steps / total_elapsed:.0f} steps/s)"
             )
             self.game.show_cards()
+            self.game.show_score()
 
         unadjusted_reward = reward
         reward = self.adjust_reward(reward)
@@ -241,11 +250,11 @@ class SolitaireEnv(gymnasium.Env):
 
     def get_stack(self, idx):
         # Map index to the corresponding stack in the game
-        if idx < 7:
+        if idx < self.game.num_t_stacks:
             return str(idx + 1)  # Tableau stacks 0-6
-        elif 6 < idx < 11:
-            return f"f{idx+1-7}"  # Foundation stacks 0-3
-        elif idx == 11:
+        elif self.game.num_t_stacks - 1 < idx < self.game.num_t_stacks + 4:
+            return f"f{idx+1-self.game.num_t_stacks}"  # Foundation stacks 0-3
+        elif idx == self.game.num_t_stacks + 4:
             return "n"  # Next cards stack
         else:
             raise ValueError(f"Invalid stack index: {idx}")
@@ -280,10 +289,14 @@ class SolitaireEnv(gymnasium.Env):
         return card_number
 
     def decode_action(self, action):
-        num_destinations = 11
+        num_destinations = self.game.num_t_stacks + 4
         DEAL_ACTION = self.action_space.n - 1
         if action == DEAL_ACTION:
-            return 12, 1, 1  # Explicit immediate return for special action
+            return (
+                num_destinations + 1,
+                1,
+                1,
+            )  # Explicit immediate return for special action
         source_stack = action // (num_destinations * self.max_cards_per_move)
         action %= num_destinations * self.max_cards_per_move
         destination_stack = action // self.max_cards_per_move
